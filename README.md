@@ -149,46 +149,59 @@ After baseline, every run reads the latest three pages. When an archive audit is
 
 ## Cloudflare deployment
 
-1. Sign in and create the D1 database:
+Production portal: [notivo.notivo.workers.dev](https://notivo.notivo.workers.dev).
+
+Use the named `production` environment for the hosted application. The base configuration remains for local development, so production deployment does not replace the local database binding.
+
+1. Sign in. Create a D1 database only when setting up a new installation; this installation already has `nmc-notices`:
 
    ```sh
    npx wrangler login
    npx wrangler d1 create nmc-notices
    ```
 
-2. Replace the all-zero `database_id` in `wrangler.jsonc` with the returned ID. Keep `EMAIL_ENABLED` set to `"false"`.
+2. Confirm `env.production.account_id` and `env.production.d1_databases[].database_id` in `wrangler.jsonc` point to the intended account and database. If deploying a separate installation, replace those production IDs with your own. Keep `EMAIL_ENABLED` set to `"false"` while initializing.
 
 3. Initialize the remote database and deploy:
 
    ```sh
-   npm run db:migrate:remote
-   npm run deploy
+   npm run db:migrate:production
+   npm run deploy:production
    ```
 
 4. Configure Worker secrets using the interactive prompts:
 
    ```sh
-   npx wrangler secret put ADMIN_TOKEN
-   npx wrangler secret put BETTER_AUTH_SECRET
-   npx wrangler secret put SETTINGS_ENCRYPTION_KEY
-   npx wrangler secret put EMAIL_TO
-   npx wrangler secret put EMAIL_FROM
-   npx wrangler secret put RESEND_API_KEY
+   npx wrangler secret put ADMIN_TOKEN --env production
+   npx wrangler secret put BETTER_AUTH_SECRET --env production
+   npx wrangler secret put SETTINGS_ENCRYPTION_KEY --env production
+   npx wrangler secret put EMAIL_TO --env production
+   npx wrangler secret put EMAIL_FROM --env production
+   npx wrangler secret put RESEND_API_KEY --env production
    ```
 
    Generate independent random values with `openssl rand -hex 32` for each of these three server secrets. Keep them private. `SETTINGS_ENCRYPTION_KEY` must contain exactly 64 hex characters; `BETTER_AUTH_SECRET` requires at least 32 characters. Local `.dev.vars` secrets are not deployed automatically.
 
-   Email environment secrets are optional defaults: you can configure recipients, sender, and an encrypted Resend key through the portal instead. The sender's domain must be verified in Resend, and the key needs permission to send email.
-
-5. Set `MONITOR_URL` to the deployed Worker HTTPS URL and `ADMIN_TOKEN` to its token in your terminal environment. Run:
+   For this installation, production credentials are stored locally in the ignored `.dev.vars.production` file with owner-only permissions. It contains independent production server secrets and the configured email credentials. To upload that file without printing its values:
 
    ```sh
-   npm run admin -- baseline
-   npm run admin -- status
-   npm run admin -- preview
+   npx wrangler secret bulk .dev.vars.production --env production
    ```
 
-6. Open the deployed portal, create the admin account, and review Configuration and the email preview. Enable email sending and save when ready. Pending notifications accumulated after baseline will then be sent by subsequent cycles. Dashboard values override environment defaults, including the committed `EMAIL_ENABLED=false`.
+   Keep this file out of Git and preserve the production encryption key: stored dashboard keys require it for decryption.
+
+   Email environment secrets are optional defaults: you can configure recipients, sender, and an encrypted Resend key through the portal instead. The sender's domain must be verified in Resend, and the key needs permission to send email.
+
+5. Set `MONITOR_URL` to the deployed Worker HTTPS URL. Load production credentials for each admin command, so it does not accidentally target the local account:
+
+   ```sh
+   export MONITOR_URL=https://your-worker.your-subdomain.workers.dev
+   node --env-file=.dev.vars.production scripts/admin.mjs baseline
+   node --env-file=.dev.vars.production scripts/admin.mjs status
+   node --env-file=.dev.vars.production scripts/admin.mjs preview
+   ```
+
+6. Open the deployed portal and create the production admin account using the setup token (`ADMIN_TOKEN`) from `.dev.vars.production`. The local account and local email history are not copied to production. Review Configuration and the email preview. Enable email sending and save when ready. Pending notifications accumulated after baseline will then be sent by subsequent cycles. Dashboard values override environment defaults, including the committed `EMAIL_ENABLED=false`.
 
 Cron runs every 15 minutes. The schedule is defined in UTC, although `*/15 * * * *` has the same interval in every timezone. Store dates and timestamps in UTC.
 

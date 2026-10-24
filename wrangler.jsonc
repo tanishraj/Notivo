@@ -22,5 +22,28 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "env": {
+    "production": {
+      "name": "notivo",
+      "account_id": "97ac2e243aea8618cadae1d3a73202bb",
+      "workers_dev": true,
+      "vars": {
+        "EMAIL_ENABLED": "false",
+        "RECENT_PAGES": "3",
+        "BASELINE_PAGES_PER_RUN": "3",
+        "AUDIT_PAGES_PER_RUN": "2",
+        "EMAILS_PER_RUN": "5"
+      },
+      "triggers": { "crons": ["*/15 * * * *"] },
+      "d1_databases": [
+        {
+          "binding": "DB",
+          "database_name": "nmc-notices",
+          "database_id": "ad7b9e3e-855a-4cae-9428-5eed8d1ed0d7",
+          "migrations_dir": "migrations"
+        }
+      ]
+    }
+  }
 }
