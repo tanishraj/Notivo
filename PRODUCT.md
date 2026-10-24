@@ -1,0 +1,27 @@
+# Notivo
+
+<!-- impeccable:product-schema 1 -->
+
+## Platform
+
+web
+
+## Product Purpose
+
+Monitor every entry on the National Medical Commission's What's New page. Import existing entries as a silent starting baseline, then email genuinely new entries with links to their original documents. Existing-entry changes remain in history without new-notice emails. Publication date is informational, not an eligibility cutoff.
+
+## Operating Context
+
+An existing Cloudflare Worker checks NMC every 15 minutes after deployment. D1 holds notice metadata and email history. Resend sends emails. Local development uses Wrangler and local D1.
+
+## Capabilities and Constraints
+
+The portal reads the existing archive, email queue, and run history. Administrators can edit recipients, sender, encrypted Resend key, sending/monitoring toggles, minimum check interval, and per-cycle limits. D1 settings override environment defaults for subsequent runs. A manual portal check scans and queues notices without sending mail. Documents stay on NMC's website. Accepted means Resend accepted the email, not verified inbox delivery. Baseline imports do not trigger emails. Grouped email sending is not implemented.
+
+## Brand Commitments
+
+Notivo is the project name. Use shadcnblocks for page design and the navy-and-white theme previously selected from snmih.in. NMC is the source; do not use the SNMIH logo or imply this is an official NMC service.
+
+## Access
+
+The user confirmed a private admin dashboard and requested a conventional login. Better Auth manages email/password login and eight-hour HttpOnly database sessions. The first admin is created once using the installation's admin token; public registration is closed. The token remains for CLI access and explicit owner recovery. Multi-user accounts and a public notice portal are outside this version.

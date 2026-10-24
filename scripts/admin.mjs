@@ -16,10 +16,10 @@ async function main() {
   if (base.protocol !== 'https:' && !['localhost', '127.0.0.1', '[::1]'].includes(base.hostname)) {
     throw new Error('Use HTTPS for remote monitor URLs');
   }
-  if (!['status', 'run', 'send', 'preview', 'baseline', 'test-email'].includes(action) ||
+  if (!['status', 'run', 'send', 'preview', 'baseline', 'test-email', 'reset-login'].includes(action) ||
       process.argv.slice(3).some((arg) => !['--dry-run', '--html'].includes(arg)) ||
       (dryRun && action !== 'test-email') || (htmlPreview && action !== 'preview')) {
-    throw new Error('Usage: npm run admin -- status|run|send|preview [--html]|baseline|test-email [--dry-run]');
+    throw new Error('Usage: npm run admin -- status|run|send|preview [--html]|baseline|test-email [--dry-run]|reset-login');
   }
   async function request(path, method = 'GET') {
     let response;
@@ -66,9 +66,9 @@ async function main() {
         await new Promise((resolve) => setTimeout(resolve, 1_000));
       }
     } else {
-      const path = action === 'preview' ? '/admin/preview?format=json' : `/admin/${action}`;
+      const path = action === 'preview' ? '/admin/preview?format=json' : action === 'reset-login' ? '/admin/account' : `/admin/${action}`;
       const sendsTest = action === 'test-email' && !dryRun;
-      const result = await request(path, ['run', 'send'].includes(action) || sendsTest ? 'POST' : 'GET');
+      const result = await request(path, action === 'reset-login' ? 'DELETE' : ['run', 'send'].includes(action) || sendsTest ? 'POST' : 'GET');
       if (htmlPreview) {
         if (typeof result.html !== 'string') throw new Error('The server returned no email HTML');
         mkdirSync('.wrangler', { recursive: true });

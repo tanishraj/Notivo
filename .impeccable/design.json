@@ -1,0 +1,638 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-10-24T18:46:23.873331+00:00",
+  "title": "Design System: Notivo",
+  "extensions": {
+    "colorMeta": {
+      "primary": {
+        "role": "primary",
+        "displayName": "Primary",
+        "tonalRamp": [
+          "oklch(15% 0.1025 259.53)",
+          "oklch(26% 0.1025 259.53)",
+          "oklch(38% 0.1025 259.53)",
+          "oklch(49% 0.1025 259.53)",
+          "oklch(61% 0.1025 259.53)",
+          "oklch(72% 0.1025 259.53)",
+          "oklch(84% 0.1025 259.53)",
+          "oklch(95% 0.1025 259.53)"
+        ]
+      },
+      "foreground": {
+        "role": "neutral",
+        "displayName": "Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0575 258.39)",
+          "oklch(26% 0.0575 258.39)",
+          "oklch(38% 0.0575 258.39)",
+          "oklch(49% 0.0575 258.39)",
+          "oklch(61% 0.0575 258.39)",
+          "oklch(72% 0.0575 258.39)",
+          "oklch(84% 0.0575 258.39)",
+          "oklch(95% 0.0575 258.39)"
+        ]
+      },
+      "background": {
+        "role": "neutral",
+        "displayName": "Background",
+        "tonalRamp": [
+          "oklch(15% 0.0045 258.32)",
+          "oklch(26% 0.0045 258.32)",
+          "oklch(38% 0.0045 258.32)",
+          "oklch(49% 0.0045 258.32)",
+          "oklch(61% 0.0045 258.32)",
+          "oklch(72% 0.0045 258.32)",
+          "oklch(84% 0.0045 258.32)",
+          "oklch(95% 0.0045 258.32)"
+        ]
+      },
+      "surface": {
+        "role": "neutral",
+        "displayName": "Surface",
+        "tonalRamp": [
+          "oklch(15% 0.0000 89.88)",
+          "oklch(26% 0.0000 89.88)",
+          "oklch(38% 0.0000 89.88)",
+          "oklch(49% 0.0000 89.88)",
+          "oklch(61% 0.0000 89.88)",
+          "oklch(72% 0.0000 89.88)",
+          "oklch(84% 0.0000 89.88)",
+          "oklch(95% 0.0000 89.88)"
+        ]
+      },
+      "secondary": {
+        "role": "neutral",
+        "displayName": "Secondary",
+        "tonalRamp": [
+          "oklch(15% 0.0086 247.91)",
+          "oklch(26% 0.0086 247.91)",
+          "oklch(38% 0.0086 247.91)",
+          "oklch(49% 0.0086 247.91)",
+          "oklch(61% 0.0086 247.91)",
+          "oklch(72% 0.0086 247.91)",
+          "oklch(84% 0.0086 247.91)",
+          "oklch(95% 0.0086 247.91)"
+        ]
+      },
+      "accent": {
+        "role": "neutral",
+        "displayName": "Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0114 252.09)",
+          "oklch(26% 0.0114 252.09)",
+          "oklch(38% 0.0114 252.09)",
+          "oklch(49% 0.0114 252.09)",
+          "oklch(61% 0.0114 252.09)",
+          "oklch(72% 0.0114 252.09)",
+          "oklch(84% 0.0114 252.09)",
+          "oklch(95% 0.0114 252.09)"
+        ]
+      },
+      "sidebar-accent": {
+        "role": "neutral",
+        "displayName": "Sidebar Accent",
+        "tonalRamp": [
+          "oklch(15% 0.0125 255.51)",
+          "oklch(26% 0.0125 255.51)",
+          "oklch(38% 0.0125 255.51)",
+          "oklch(49% 0.0125 255.51)",
+          "oklch(61% 0.0125 255.51)",
+          "oklch(72% 0.0125 255.51)",
+          "oklch(84% 0.0125 255.51)",
+          "oklch(95% 0.0125 255.51)"
+        ]
+      },
+      "muted": {
+        "role": "neutral",
+        "displayName": "Muted",
+        "tonalRamp": [
+          "oklch(15% 0.0062 255.47)",
+          "oklch(26% 0.0062 255.47)",
+          "oklch(38% 0.0062 255.47)",
+          "oklch(49% 0.0062 255.47)",
+          "oklch(61% 0.0062 255.47)",
+          "oklch(72% 0.0062 255.47)",
+          "oklch(84% 0.0062 255.47)",
+          "oklch(95% 0.0062 255.47)"
+        ]
+      },
+      "muted-foreground": {
+        "role": "neutral",
+        "displayName": "Muted Foreground",
+        "tonalRamp": [
+          "oklch(15% 0.0366 255.69)",
+          "oklch(26% 0.0366 255.69)",
+          "oklch(38% 0.0366 255.69)",
+          "oklch(49% 0.0366 255.69)",
+          "oklch(61% 0.0366 255.69)",
+          "oklch(72% 0.0366 255.69)",
+          "oklch(84% 0.0366 255.69)",
+          "oklch(95% 0.0366 255.69)"
+        ]
+      },
+      "metadata": {
+        "role": "neutral",
+        "displayName": "Metadata",
+        "tonalRamp": [
+          "oklch(15% 0.0369 258.37)",
+          "oklch(26% 0.0369 258.37)",
+          "oklch(38% 0.0369 258.37)",
+          "oklch(49% 0.0369 258.37)",
+          "oklch(61% 0.0369 258.37)",
+          "oklch(72% 0.0369 258.37)",
+          "oklch(84% 0.0369 258.37)",
+          "oklch(95% 0.0369 258.37)"
+        ]
+      },
+      "border": {
+        "role": "neutral",
+        "displayName": "Border",
+        "tonalRamp": [
+          "oklch(15% 0.0139 247.98)",
+          "oklch(26% 0.0139 247.98)",
+          "oklch(38% 0.0139 247.98)",
+          "oklch(49% 0.0139 247.98)",
+          "oklch(61% 0.0139 247.98)",
+          "oklch(72% 0.0139 247.98)",
+          "oklch(84% 0.0139 247.98)",
+          "oklch(95% 0.0139 247.98)"
+        ]
+      },
+      "divider": {
+        "role": "neutral",
+        "displayName": "Divider",
+        "tonalRamp": [
+          "oklch(15% 0.0114 252.09)",
+          "oklch(26% 0.0114 252.09)",
+          "oklch(38% 0.0114 252.09)",
+          "oklch(49% 0.0114 252.09)",
+          "oklch(61% 0.0114 252.09)",
+          "oklch(72% 0.0114 252.09)",
+          "oklch(84% 0.0114 252.09)",
+          "oklch(95% 0.0114 252.09)"
+        ]
+      },
+      "input": {
+        "role": "neutral",
+        "displayName": "Input",
+        "tonalRamp": [
+          "oklch(15% 0.0179 253.35)",
+          "oklch(26% 0.0179 253.35)",
+          "oklch(38% 0.0179 253.35)",
+          "oklch(49% 0.0179 253.35)",
+          "oklch(61% 0.0179 253.35)",
+          "oklch(72% 0.0179 253.35)",
+          "oklch(84% 0.0179 253.35)",
+          "oklch(95% 0.0179 253.35)"
+        ]
+      },
+      "ring": {
+        "role": "accent",
+        "displayName": "Ring",
+        "tonalRamp": [
+          "oklch(15% 0.0941 250.74)",
+          "oklch(26% 0.0941 250.74)",
+          "oklch(38% 0.0941 250.74)",
+          "oklch(49% 0.0941 250.74)",
+          "oklch(61% 0.0941 250.74)",
+          "oklch(72% 0.0941 250.74)",
+          "oklch(84% 0.0941 250.74)",
+          "oklch(95% 0.0941 250.74)"
+        ]
+      },
+      "brand-green": {
+        "role": "accent",
+        "displayName": "Brand Green",
+        "tonalRamp": [
+          "oklch(15% 0.0946 148.60)",
+          "oklch(26% 0.0946 148.60)",
+          "oklch(38% 0.0946 148.60)",
+          "oklch(49% 0.0946 148.60)",
+          "oklch(61% 0.0946 148.60)",
+          "oklch(72% 0.0946 148.60)",
+          "oklch(84% 0.0946 148.60)",
+          "oklch(95% 0.0946 148.60)"
+        ]
+      },
+      "brand-signal": {
+        "role": "accent",
+        "displayName": "Brand Signal",
+        "tonalRamp": [
+          "oklch(15% 0.1024 148.89)",
+          "oklch(26% 0.1024 148.89)",
+          "oklch(38% 0.1024 148.89)",
+          "oklch(49% 0.1024 148.89)",
+          "oklch(61% 0.1024 148.89)",
+          "oklch(72% 0.1024 148.89)",
+          "oklch(84% 0.1024 148.89)",
+          "oklch(95% 0.1024 148.89)"
+        ]
+      },
+      "success-bg": {
+        "role": "semantic",
+        "displayName": "Success Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0182 155.81)",
+          "oklch(26% 0.0182 155.81)",
+          "oklch(38% 0.0182 155.81)",
+          "oklch(49% 0.0182 155.81)",
+          "oklch(61% 0.0182 155.81)",
+          "oklch(72% 0.0182 155.81)",
+          "oklch(84% 0.0182 155.81)",
+          "oklch(95% 0.0182 155.81)"
+        ]
+      },
+      "success-text": {
+        "role": "semantic",
+        "displayName": "Success Text",
+        "tonalRamp": [
+          "oklch(15% 0.0742 153.41)",
+          "oklch(26% 0.0742 153.41)",
+          "oklch(38% 0.0742 153.41)",
+          "oklch(49% 0.0742 153.41)",
+          "oklch(61% 0.0742 153.41)",
+          "oklch(72% 0.0742 153.41)",
+          "oklch(84% 0.0742 153.41)",
+          "oklch(95% 0.0742 153.41)"
+        ]
+      },
+      "info-bg": {
+        "role": "semantic",
+        "displayName": "Info Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0149 260.73)",
+          "oklch(26% 0.0149 260.73)",
+          "oklch(38% 0.0149 260.73)",
+          "oklch(49% 0.0149 260.73)",
+          "oklch(61% 0.0149 260.73)",
+          "oklch(72% 0.0149 260.73)",
+          "oklch(84% 0.0149 260.73)",
+          "oklch(95% 0.0149 260.73)"
+        ]
+      },
+      "info-text": {
+        "role": "semantic",
+        "displayName": "Info Text",
+        "tonalRamp": [
+          "oklch(15% 0.0985 255.51)",
+          "oklch(26% 0.0985 255.51)",
+          "oklch(38% 0.0985 255.51)",
+          "oklch(49% 0.0985 255.51)",
+          "oklch(61% 0.0985 255.51)",
+          "oklch(72% 0.0985 255.51)",
+          "oklch(84% 0.0985 255.51)",
+          "oklch(95% 0.0985 255.51)"
+        ]
+      },
+      "warning-bg": {
+        "role": "semantic",
+        "displayName": "Warning Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0346 88.78)",
+          "oklch(26% 0.0346 88.78)",
+          "oklch(38% 0.0346 88.78)",
+          "oklch(49% 0.0346 88.78)",
+          "oklch(61% 0.0346 88.78)",
+          "oklch(72% 0.0346 88.78)",
+          "oklch(84% 0.0346 88.78)",
+          "oklch(95% 0.0346 88.78)"
+        ]
+      },
+      "warning-text": {
+        "role": "semantic",
+        "displayName": "Warning Text",
+        "tonalRamp": [
+          "oklch(15% 0.0877 77.95)",
+          "oklch(26% 0.0877 77.95)",
+          "oklch(38% 0.0877 77.95)",
+          "oklch(49% 0.0877 77.95)",
+          "oklch(61% 0.0877 77.95)",
+          "oklch(72% 0.0877 77.95)",
+          "oklch(84% 0.0877 77.95)",
+          "oklch(95% 0.0877 77.95)"
+        ]
+      },
+      "error-bg": {
+        "role": "semantic",
+        "displayName": "Error Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0210 24.79)",
+          "oklch(26% 0.0210 24.79)",
+          "oklch(38% 0.0210 24.79)",
+          "oklch(49% 0.0210 24.79)",
+          "oklch(61% 0.0210 24.79)",
+          "oklch(72% 0.0210 24.79)",
+          "oklch(84% 0.0210 24.79)",
+          "oklch(95% 0.0210 24.79)"
+        ]
+      },
+      "error-text": {
+        "role": "semantic",
+        "displayName": "Error Text",
+        "tonalRamp": [
+          "oklch(15% 0.1436 28.75)",
+          "oklch(26% 0.1436 28.75)",
+          "oklch(38% 0.1436 28.75)",
+          "oklch(49% 0.1436 28.75)",
+          "oklch(61% 0.1436 28.75)",
+          "oklch(72% 0.1436 28.75)",
+          "oklch(84% 0.1436 28.75)",
+          "oklch(95% 0.1436 28.75)"
+        ]
+      },
+      "destructive": {
+        "role": "semantic",
+        "displayName": "Destructive",
+        "tonalRamp": [
+          "oklch(15% 0.1821 29.51)",
+          "oklch(26% 0.1821 29.51)",
+          "oklch(38% 0.1821 29.51)",
+          "oklch(49% 0.1821 29.51)",
+          "oklch(61% 0.1821 29.51)",
+          "oklch(72% 0.1821 29.51)",
+          "oklch(84% 0.1821 29.51)",
+          "oklch(95% 0.1821 29.51)"
+        ]
+      },
+      "healthy-bg": {
+        "role": "semantic",
+        "displayName": "Healthy Bg",
+        "tonalRamp": [
+          "oklch(15% 0.0099 155.10)",
+          "oklch(26% 0.0099 155.10)",
+          "oklch(38% 0.0099 155.10)",
+          "oklch(49% 0.0099 155.10)",
+          "oklch(61% 0.0099 155.10)",
+          "oklch(72% 0.0099 155.10)",
+          "oklch(84% 0.0099 155.10)",
+          "oklch(95% 0.0099 155.10)"
+        ]
+      },
+      "healthy-border": {
+        "role": "semantic",
+        "displayName": "Healthy Border",
+        "tonalRamp": [
+          "oklch(15% 0.0234 153.43)",
+          "oklch(26% 0.0234 153.43)",
+          "oklch(38% 0.0234 153.43)",
+          "oklch(49% 0.0234 153.43)",
+          "oklch(61% 0.0234 153.43)",
+          "oklch(72% 0.0234 153.43)",
+          "oklch(84% 0.0234 153.43)",
+          "oklch(95% 0.0234 153.43)"
+        ]
+      },
+      "healthy-text": {
+        "role": "semantic",
+        "displayName": "Healthy Text",
+        "tonalRamp": [
+          "oklch(15% 0.0448 152.59)",
+          "oklch(26% 0.0448 152.59)",
+          "oklch(38% 0.0448 152.59)",
+          "oklch(49% 0.0448 152.59)",
+          "oklch(61% 0.0448 152.59)",
+          "oklch(72% 0.0448 152.59)",
+          "oklch(84% 0.0448 152.59)",
+          "oklch(95% 0.0448 152.59)"
+        ]
+      },
+      "warning-banner": {
+        "role": "semantic",
+        "displayName": "Warning Banner",
+        "tonalRamp": [
+          "oklch(15% 0.0095 93.57)",
+          "oklch(26% 0.0095 93.57)",
+          "oklch(38% 0.0095 93.57)",
+          "oklch(49% 0.0095 93.57)",
+          "oklch(61% 0.0095 93.57)",
+          "oklch(72% 0.0095 93.57)",
+          "oklch(84% 0.0095 93.57)",
+          "oklch(95% 0.0095 93.57)"
+        ]
+      },
+      "warning-border": {
+        "role": "semantic",
+        "displayName": "Warning Border",
+        "tonalRamp": [
+          "oklch(15% 0.0265 90.11)",
+          "oklch(26% 0.0265 90.11)",
+          "oklch(38% 0.0265 90.11)",
+          "oklch(49% 0.0265 90.11)",
+          "oklch(61% 0.0265 90.11)",
+          "oklch(72% 0.0265 90.11)",
+          "oklch(84% 0.0265 90.11)",
+          "oklch(95% 0.0265 90.11)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "headline": {
+        "displayName": "Page heading",
+        "purpose": "Operational screen title."
+      },
+      "title": {
+        "displayName": "Panel heading",
+        "purpose": "Compact container hierarchy."
+      },
+      "body": {
+        "displayName": "Working copy",
+        "purpose": "Page descriptions and explanations."
+      },
+      "label": {
+        "displayName": "Supporting label",
+        "purpose": "Metadata and small interface copy."
+      },
+      "metric": {
+        "displayName": "Metric",
+        "purpose": "Counts, with tabular numerals."
+      },
+      "source-title": {
+        "displayName": "Source identity",
+        "purpose": "Institutional serif accent."
+      }
+    },
+    "shadows": [
+      {
+        "name": "control",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 5%)",
+        "purpose": "Outline buttons and input primitives."
+      },
+      {
+        "name": "preview",
+        "value": "0 18px 70px rgb(11 29 56 / 20%)",
+        "purpose": "Document preview dialog."
+      },
+      {
+        "name": "select-menu",
+        "value": "0 8px 24px rgb(11 29 56 / 12%)",
+        "purpose": "Portaled shadcn/Radix Select choice list."
+      }
+    ],
+    "motion": [
+      {
+        "name": "loading-spin",
+        "value": "spin 1.2s linear infinite",
+        "purpose": "Pending activity indicator; disabled for reduced motion."
+      },
+      {
+        "name": "sidebar-transition",
+        "value": "200ms linear",
+        "purpose": "Desktop sidebar width and position."
+      },
+      {
+        "name": "reduced-motion",
+        "value": "animation: none !important; transition: none !important; scroll-behavior: auto !important",
+        "purpose": "All elements when prefers-reduced-motion is reduce."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "mobile",
+        "value": "767px"
+      },
+      {
+        "name": "stack-overview",
+        "value": "1000px"
+      },
+      {
+        "name": "stack-settings",
+        "value": "1100px"
+      },
+      {
+        "name": "compact-desktop",
+        "value": "1200px"
+      },
+      {
+        "name": "wide-desktop",
+        "value": "1600px"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Main page action.",
+      "html": "<button class=\"ds-primary\">Check for notices</button>",
+      "css": ".ds-primary{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:35px;padding:0 12px;border:1px solid transparent;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;transition:background-color 150ms;background:var(--primary,#06285d);color:#fff}.ds-primary:hover{background:color-mix(in srgb,var(--primary,#06285d) 90%,transparent)}.ds-primary:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;box-shadow:0 0 0 3px rgb(72 120 170 / 50%)}.ds-primary:disabled{opacity:.5;pointer-events:none} @media(prefers-reduced-motion:reduce){.ds-primary{transition:none;animation:none}}"
+    },
+    {
+      "name": "Outline action",
+      "kind": "button",
+      "refersTo": "button-outline",
+      "description": "Secondary page action.",
+      "html": "<button class=\"ds-outline\">Email preview</button>",
+      "css": ".ds-outline{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:35px;padding:0 12px;border:1px solid transparent;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;transition:background-color 150ms;background:var(--background,#f7f9fc);color:var(--foreground,#0b1d38);border-color:var(--color-border,#dfe7ef);box-shadow:0 1px 2px 0 rgb(0 0 0 / 5%)}.ds-outline:hover{background:var(--color-accent,#eaf0f7);color:var(--primary,#06285d)}.ds-outline:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;box-shadow:0 0 0 3px rgb(72 120 170 / 50%)}.ds-outline:disabled{opacity:.5;pointer-events:none} @media(prefers-reduced-motion:reduce){.ds-outline{transition:none;animation:none}}"
+    },
+    {
+      "name": "Ghost icon action",
+      "kind": "button",
+      "refersTo": "button-ghost",
+      "description": "Quiet icon action with an accessible name.",
+      "html": "<button class=\"ds-ghost\" aria-label=\"Refresh\"><svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\"><path d=\"M20 7v5h-5M4 17v-5h5M6.1 7a7 7 0 0 1 11.55-2L20 8M4 16l2.35 3A7 7 0 0 0 17.9 17\"/></svg></button>",
+      "css": ".ds-ghost{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:7px;height:35px;padding:0 12px;border:1px solid transparent;border-radius:7px;font-size:11px;font-weight:500;cursor:pointer;transition:background-color 150ms;width:32px;padding:0;background:transparent;color:var(--foreground,#0b1d38)}.ds-ghost:hover,.ds-ghost:active{background:var(--color-accent,#eaf0f7);color:var(--primary,#06285d)}.ds-ghost:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;}.ds-ghost:disabled{opacity:.5;pointer-events:none} @media(prefers-reduced-motion:reduce){.ds-ghost{transition:none;animation:none}}"
+    },
+    {
+      "name": "Search field",
+      "kind": "input",
+      "refersTo": "input-search",
+      "description": "Archive search field.",
+      "html": "<input class=\"ds-search\" aria-label=\"Search notices\" placeholder=\"Search notices\u2026\"/>",
+      "css": ".ds-search{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;height:36px;width:100%;min-width:0;padding:4px 12px;border:1px solid var(--color-input,#d7e0eb);border-radius:7px;background:#fff;color:var(--foreground,#0b1d38);font-size:12px;box-shadow:0 1px 2px 0 rgb(0 0 0 / 5%);transition:color 150ms,box-shadow 150ms}.ds-search::placeholder{color:var(--color-muted-foreground,#5b6a7e)}.ds-search:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;border-color:var(--color-ring,#4878aa);box-shadow:0 0 0 3px rgb(72 120 170 / 50%)}.ds-search[aria-invalid=true]{border-color:var(--color-destructive,#b42318)}.ds-search:disabled{opacity:.5;cursor:not-allowed} @media(prefers-reduced-motion:reduce){.ds-search{transition:none;animation:none}}"
+    },
+    {
+      "name": "Active navigation",
+      "kind": "nav",
+      "refersTo": "nav-active",
+      "description": "Current workspace destination and authenticated account footer. The footer uses status.currentUser initials, name, and email, with ellipses and full-value title attributes for long values; the same account group appears in the mobile sheet. Unavailable details use the Account / Account details unavailable fallback.",
+      "html": "<nav aria-label=\"Workspace\"><a class=\"ds-nav\" href=\"#overview\" aria-current=\"page\"><svg width=\"17\" height=\"17\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.7\"><rect x=\"3\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"3\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"3\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/><rect x=\"14\" y=\"14\" width=\"7\" height=\"7\" rx=\"1\"/></svg>Overview</a></nav><div class=\"ds-account\" role=\"group\" aria-label=\"Signed-in account\"><span class=\"ds-account-avatar\" aria-hidden=\"true\">AM</span><div class=\"ds-account-details\"><strong title=\"Alex Morgan\">Alex Morgan</strong><small title=\"alex@example.com\">alex@example.com</small></div></div>",
+      "css": ".ds-nav{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:flex;align-items:center;gap:11px;height:40px;box-sizing:border-box;padding:10px 12px;border-radius:7px;background:var(--color-sidebar-accent,#eaf0f8);color:var(--primary,#06285d);font-size:12px;font-weight:600;text-decoration:none}.ds-nav:hover,.ds-nav:active{background:var(--color-sidebar-accent,#eaf0f8)}.ds-nav:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;} @media(prefers-reduced-motion:reduce){.ds-nav{transition:none;animation:none}}.ds-account{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:flex;align-items:center;gap:10px;padding:19px 10px 5px;margin-top:14px;border-top:1px solid var(--color-divider,#e7edf4)}.ds-account-avatar{display:grid;place-items:center;flex-shrink:0;width:30px;height:30px;border-radius:50%;background:#edf2f8;color:var(--primary,#06285d);font-size:11px;font-weight:600}.ds-account-details{min-width:0}.ds-account-details strong,.ds-account-details small{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ds-account-details strong{font-size:11px;font-weight:600;color:#273c57}.ds-account-details small{font-size:10px;margin-top:2px;color:var(--color-muted-foreground,#5b6a7e)}"
+    },
+    {
+      "name": "Healthy badge",
+      "kind": "chip",
+      "refersTo": "badge-success",
+      "description": "Semantic label, not an interactive filter. Cancelled email activity instead uses a neutral badge and muted reason text, keeping the visible explanation separate from the red failure treatment.",
+      "html": "<span class=\"ds-badge\">Healthy</span>",
+      "css": ".ds-badge{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:5px;border-radius:4px;padding:3px 7px;background:#e4f1e8;color:#376747;font-size:9px;font-weight:600;line-height:1.5;white-space:nowrap;text-transform:capitalize} @media(prefers-reduced-motion:reduce){.ds-badge{transition:none;animation:none}}"
+    },
+    {
+      "name": "Content panel",
+      "kind": "card",
+      "refersTo": "panel",
+      "description": "Flat divided content container. Summary copy distinguishes Unique notices tracked from entries listed on NMC.",
+      "html": "<section class=\"ds-panel\"><header class=\"ds-panel-head\"><h2 class=\"ds-panel-title\">Latest notices</h2><p class=\"ds-panel-copy\">The most recent publications from NMC.</p></header><p class=\"ds-panel-body\">Original document metadata and source links.</p></section>",
+      "css": ".ds-panel{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;border:1px solid var(--color-border,#dfe7ef);border-radius:12px;overflow:hidden;background:#fff;color:var(--foreground,#0b1d38)}.ds-panel-head{padding:21px 22px;border-bottom:1px solid #e7edf4}.ds-panel-title{margin:0;font-size:14px;font-weight:600;letter-spacing:-.2px}.ds-panel-copy{margin:6px 0 0;font-size:11px;line-height:1.5;color:var(--color-muted-foreground,#5b6a7e)}.ds-panel-body{margin:0;padding:22px;font-size:12px;line-height:1.65} @media(prefers-reduced-motion:reduce){.ds-panel,.ds-panel-body,.ds-panel-copy,.ds-panel-head,.ds-panel-title{transition:none;animation:none}}"
+    },
+    {
+      "name": "Source panel",
+      "kind": "card",
+      "refersTo": "source-panel",
+      "description": "The recurring navy source identity surface.",
+      "html": "<section class=\"ds-source\"><span class=\"ds-source-mark\">N</span><h2 class=\"ds-source-title\">National Medical<br/>Commission</h2><p class=\"ds-source-copy\">Public notices, circulars,<br/>and important announcements.</p><a class=\"ds-source-link\" href=\"https://nmc.org.in/whats-new\">View official notice board <span aria-hidden=\"true\">\u2197</span></a></section>",
+      "css": ".ds-source{font-family:-apple-system, BlinkMacSystemFont, \"Segoe UI\", sans-serif;padding:24px;border-radius:12px;background:var(--primary,#06285d);color:#fff;max-width:300px}.ds-source-mark{font:34px/1 Georgia,serif}.ds-source-title{font:400 23px/1.35 Georgia,serif;letter-spacing:-.4px;margin:27px 0 0}.ds-source-copy{font-size:11px;line-height:1.8;color:#c8d8ef;margin:14px 0 0}.ds-source-link{display:flex;justify-content:space-between;gap:8px;border-top:1px solid #365582;margin-top:24px;padding-top:18px;font-size:10px;color:#fff;text-decoration:none}.ds-source-link:hover{color:#b5e2bd}.ds-source-link:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;} @media(prefers-reduced-motion:reduce){.ds-source,.ds-source-copy,.ds-source-link,.ds-source-mark,.ds-source-title{transition:none;animation:none}}"
+    },
+    {
+      "name": "Private access form",
+      "kind": "custom",
+      "refersTo": "login-panel",
+      "description": "Email/password sign-in in the inherited flat panel. First-admin setup adds name, new-password confirmation, and a separated one-time token field. Loading, retry, readiness error, submission error, and disabled busy states use the same form hierarchy; the action reads \u201cPlease wait\u2026\u201d while busy. The token is absent from routine sign-in.",
+      "html": "<section class=\"ds-login\"><h1 class=\"ds-login-title\">Your notice desk,<br>all in one place.</h1><p class=\"ds-login-copy\">Sign in to follow NMC notices, monitor checks, and manage your notification settings.</p><form class=\"ds-login-form\"><label class=\"ds-login-label\" for=\"ds-login-email\">Email address</label><input class=\"ds-login-input\" id=\"ds-login-email\" type=\"email\" autocomplete=\"username\" placeholder=\"you@example.com\" required><label class=\"ds-login-label ds-login-next\" for=\"ds-login-password\">Password</label><input class=\"ds-login-input\" id=\"ds-login-password\" type=\"password\" autocomplete=\"current-password\" required><button class=\"ds-login-action\" type=\"submit\">Sign in <span aria-hidden=\"true\">\u2192</span></button></form><p class=\"ds-login-security\">Private access \u00b7 session expires after 8 hours</p><p class=\"ds-login-recovery\">Lost access? The installation owner can reset admin access with the recovery CLI.</p></section>",
+      "css": ".ds-login{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;max-width:460px;width:100%;box-sizing:border-box;padding:42px;border:1px solid var(--color-border,#dfe7ef);border-radius:14px;background:#fff;color:var(--foreground,#0b1d38)}.ds-login-title{font:400 31px/1.3 Georgia,serif;letter-spacing:-.6px;margin:0}.ds-login-copy{font-size:12px;line-height:1.9;color:var(--color-muted-foreground,#5b6a7e);margin:14px 0 0}.ds-login-form{margin-top:28px}.ds-login-label{display:block;font-size:12px;font-weight:500;margin-bottom:9px}.ds-login-next{margin-top:18px}.ds-login-input{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;width:100%;height:42px;padding:4px 12px;box-sizing:border-box;border:1px solid var(--color-input,#d7e0eb);border-radius:7px;background:transparent;color:var(--foreground,#0b1d38);font-size:12px;box-shadow:0 1px 2px rgb(0 0 0 / 5%)}.ds-login-input::placeholder{color:var(--color-muted-foreground,#5b6a7e)}.ds-login-input:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;box-shadow:0 0 0 3px rgb(72 120 170 / 50%);border-color:var(--color-ring,#4878aa)}.ds-login-input[aria-invalid=true]{border-color:var(--color-destructive,#b42318)}.ds-login-action{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:flex;align-items:center;justify-content:center;gap:7px;width:100%;height:42px;margin-top:24px;border:1px solid transparent;border-radius:7px;background:var(--primary,#06285d);color:#fff;font-size:12px;cursor:pointer}.ds-login-action:hover{background:color-mix(in srgb,var(--primary,#06285d) 90%,transparent)}.ds-login-action:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;box-shadow:0 0 0 3px rgb(72 120 170 / 50%)}.ds-login-input:disabled,.ds-login-action:disabled{opacity:.5;pointer-events:none}.ds-login-security{font-size:10px;text-align:center;color:#657388;margin:25px 0 0}.ds-login-recovery{font-size:10px;line-height:1.8;text-align:center;color:#657388;margin:20px 0 0}@media(max-width:767px){.ds-login{padding:30px 24px}.ds-login-title{font-size:29px}.ds-login-security{font-size:9px}}"
+    },
+    {
+      "name": "Editable settings controls",
+      "kind": "custom",
+      "refersTo": "select-settings",
+      "description": "Official shadcn/Radix Select and Checkbox, shown here as self-contained visual states. Settings trigger: 39px high; 16px chevron, measured 13px right inset and 0px vertical-center offset. Key-removal checkbox: 14px square, 9px label gap, navy checked state; distinct from 36\u00d721px native switches. Full forms include the separate recipient Badge/combobox editor, sender, blank key with keep-current guidance, advanced limits, dirty/saving/saved feedback, and an independent current/new/confirm password form with separate busy/error/success states. Static menu preview demonstrates focused and selected items; production keyboard and popup behavior belong to Radix. Notification copy refers to new NMC announcements: baseline imports send no email and existing-entry changes stay in history. Recipient changes apply to newly detected notices; queued emails retain their original recipients and retry payloads.",
+      "html": "<section class=\"ds-settings\"><label class=\"ds-settings-label\" for=\"ds-settings-interval\">Minimum check interval</label><button class=\"ds-settings-select\" id=\"ds-settings-interval\" type=\"button\" aria-haspopup=\"listbox\">2 hours<svg width=\"16\" height=\"16\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m6 9 6 6 6-6\"/></svg></button><p class=\"ds-settings-help\">Cloudflare evaluates this interval on its 15-minute schedule.</p><ul class=\"ds-settings-menu\" aria-label=\"Interval visual states\"><li class=\"ds-settings-item ds-settings-item-focus\">1 hour</li><li class=\"ds-settings-item\">2 hours<span class=\"ds-settings-selected\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m5 12 4 4L19 6\"/></svg></span></li></ul><label class=\"ds-settings-check-row\"><span class=\"ds-settings-check-wrap\"><input class=\"ds-settings-check\" type=\"checkbox\"><svg class=\"ds-settings-check-mark\" width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m5 12 4 4L19 6\"/></svg></span><span>Remove the current key when saving</span></label><label class=\"ds-settings-switch-row\"><span><strong class=\"ds-settings-switch-title\">Automatic monitoring</strong><small class=\"ds-settings-switch-help\">Pause scheduled checks and sends. Manual checks remain available.</small></span><input class=\"ds-settings-switch\" type=\"checkbox\" role=\"switch\" checked></label><p class=\"ds-settings-feedback\" role=\"status\">Settings saved. Subsequent checks and send cycles will use these values. No email was sent.</p><div class=\"ds-settings-save\"><span>All changes saved</span><button class=\"ds-settings-save-button\" type=\"button\" disabled>Save settings</button></div></section>",
+      "css": ".ds-settings{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;max-width:460px;color:var(--foreground,#0b1d38)}.ds-settings-label{display:block;font-size:12px;font-weight:550;margin-bottom:9px;color:#223850}.ds-settings-select{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;display:flex;align-items:center;justify-content:space-between;gap:7px;width:100%;height:39px;padding:0 12px;border:1px solid var(--color-input,#d7e0eb);border-radius:7px;background:#fff;color:var(--foreground,#0b1d38);font-size:12px;box-shadow:0 1px 2px rgb(0 0 0 / 5%);cursor:pointer}.ds-settings-select>svg{width:16px;height:16px;margin-left:auto;flex-shrink:0;opacity:.5}.ds-settings-select:focus-visible,.ds-settings-check:focus-visible,.ds-settings-switch:focus-visible,.ds-settings-save-button:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px;box-shadow:0 0 0 3px rgb(72 120 170 / 50%)}.ds-settings-select[aria-invalid=true]{border-color:var(--color-destructive,#b42318)}.ds-settings-select:disabled,.ds-settings-check:disabled,.ds-settings-switch:disabled,.ds-settings-save-button:disabled{opacity:.5;cursor:not-allowed}.ds-settings-help{font-size:10px;line-height:1.8;color:#657388;margin:8px 0 0}.ds-settings-menu{list-style:none;margin:8px 0 0;padding:4px;border:1px solid var(--color-border,#dfe7ef);border-radius:8px;background:#fff;box-shadow:0 8px 24px rgb(11 29 56 / 12%)}.ds-settings-item{position:relative;display:flex;align-items:center;min-height:34px;padding:0 28px 0 10px;border-radius:3.5px;font-size:12px}.ds-settings-item:hover,.ds-settings-item-focus{background:var(--color-accent,#eaf0f7);color:var(--primary,#06285d)}.ds-settings-selected{position:absolute;right:7px;display:grid;place-items:center}.ds-settings-check-row{display:flex;align-items:center;gap:9px;min-height:28px;padding:4px 0;margin-top:12px;color:#5b6a7e;font-size:11px;cursor:pointer}.ds-settings-check-wrap{position:relative;display:flex;flex-shrink:0;width:14px;height:14px}.ds-settings-check-mark{display:none;position:absolute;top:1px;left:1px;color:#fff;pointer-events:none}.ds-settings-check:checked+.ds-settings-check-mark{display:block}.ds-settings-check{appearance:none;flex-shrink:0;width:14px;height:14px;margin:0;border:1px solid var(--color-input,#d7e0eb);border-radius:4px;box-shadow:0 1px 2px rgb(0 0 0 / 5%);cursor:pointer}.ds-settings-check:checked{background:var(--primary,#06285d);border-color:var(--primary,#06285d);color:#fff}.ds-settings-check[aria-invalid=true]{border-color:var(--color-destructive,#b42318)}.ds-settings-switch-row{display:flex;align-items:center;justify-content:space-between;gap:25px;min-height:44px;margin-top:24px;cursor:pointer}.ds-settings-switch-title{display:block;font-size:12px;font-weight:550}.ds-settings-switch-help{display:block;font-size:10px;line-height:1.7;color:#657388;margin-top:5px}.ds-settings-switch{appearance:none;position:relative;flex-shrink:0;width:36px;height:21px;margin:0;border:0;border-radius:20px;background:#c7d2e0;cursor:pointer}.ds-settings-switch::after{content:\"\";position:absolute;top:3px;left:3px;width:15px;height:15px;border-radius:50%;background:#fff}.ds-settings-switch:checked{background:var(--primary,#06285d)}.ds-settings-switch:checked::after{left:18px}.ds-settings-feedback{margin:24px 0 0;padding:15px 18px;border-radius:8px;background:#ecf5ee;color:#386247;font-size:11px;line-height:1.7;overflow-wrap:anywhere}.ds-settings-save{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:16px;margin-top:22px;color:#657388;font-size:10px}.ds-settings-save-button{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;height:36px;padding:0 12px;border:1px solid transparent;border-radius:7px;background:var(--primary,#06285d);color:#fff;font-size:11px}.ds-settings-save-button:hover:enabled{background:color-mix(in srgb,var(--primary,#06285d) 90%,transparent)}@media(max-width:767px){.ds-settings-select{font-size:13px}}"
+    },
+    {
+      "name": "Recipient editor",
+      "kind": "custom",
+      "refersTo": "recipient-field",
+      "description": "Official shadcn Badge chips in a wrapping combobox field, with initials and individually labeled remove buttons. Count is selected/20; long addresses wrap. Suggestions use only the actual signed-in account and saved addresses, excluding selected entries. Production supports keyboard suggestion navigation, Enter/comma/semicolon/Tab commit, bulk paste, case normalization, deduplication, validation, an inline alert, and polite live announcements. Blur closes suggestions without committing or moving the Save action; Save includes pending typed email. This self-contained visual preview shows the chip and suggestion states without implementing the React interaction.",
+      "html": "<section class=\"ds-recipients\"><label class=\"ds-recipients-label\" for=\"ds-recipient-input\">Recipients</label><div class=\"ds-recipient-field\"><span class=\"ds-recipient-chip\"><span class=\"ds-recipient-avatar\" aria-hidden=\"true\">JA</span><span class=\"ds-recipient-email\" title=\"jack@example.com\">jack@example.com</span><button class=\"ds-recipient-remove\" type=\"button\" aria-label=\"Remove jack@example.com\"><svg width=\"12\" height=\"12\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m18 6-12 12M6 6l12 12\"/></svg></button></span><input id=\"ds-recipient-input\" class=\"ds-recipient-input\" role=\"combobox\" aria-expanded=\"true\" aria-autocomplete=\"list\" aria-controls=\"ds-recipient-suggestions\" aria-describedby=\"ds-recipients-help ds-recipient-count\" placeholder=\"Add another email\u2026\" inputmode=\"email\" autocomplete=\"off\"></div><div class=\"ds-recipient-meta\"><p id=\"ds-recipients-help\">Type an email and press Enter or comma. You can paste a list.</p><span id=\"ds-recipient-count\">1/20</span></div><div id=\"ds-recipient-suggestions\" class=\"ds-recipient-suggestions\" role=\"listbox\" aria-label=\"Suggested recipients\"><div class=\"ds-recipient-option\" role=\"option\" aria-selected=\"true\"><span class=\"ds-recipient-option-avatar\" aria-hidden=\"true\">AM</span><span class=\"ds-recipient-option-copy\"><strong>Alex Morgan</strong><small>alex@example.com</small></span><svg width=\"14\" height=\"14\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"2\" aria-hidden=\"true\"><path d=\"m5 12 4 4L19 6\"/></svg></div></div></section>",
+      "css": ".ds-recipients{font-family:-apple-system,BlinkMacSystemFont,\"Segoe UI\",sans-serif;max-width:560px;color:var(--foreground,#0b1d38)}.ds-recipients-label{display:block;font-size:12px;font-weight:550;margin-bottom:9px;color:#223850}.ds-recipient-field{display:flex;flex-wrap:wrap;align-items:center;gap:7px;min-height:45px;padding:7px 9px;background:var(--color-surface,#fff);border:1px solid var(--color-input,#d7e0eb);border-radius:7px;cursor:text}.ds-recipient-field:focus-within{border-color:var(--color-ring,#4878aa);outline:2px solid var(--color-ring,#4878aa);outline-offset:2px}.ds-recipient-field:has([aria-invalid=true]){border-color:#a1362c}.ds-recipient-field:has(:disabled){opacity:.65;cursor:not-allowed}.ds-recipient-chip{display:inline-flex;align-items:center;gap:6px;max-width:100%;min-height:28px;padding:2px 3px 2px 5px;border:0;border-radius:6px;background:var(--color-secondary,#eef3f8);color:#223850;font-size:11px;font-weight:400}.ds-recipient-avatar{display:grid;place-items:center;width:20px;height:20px;flex-shrink:0;border-radius:50%;background:var(--color-border,#dfe7ef);color:var(--primary,#06285d);font-size:8px;font-weight:600}.ds-recipient-email{min-width:0;overflow-wrap:anywhere;white-space:normal}.ds-recipient-remove{display:grid;place-items:center;width:24px;height:24px;padding:0;border:0;flex-shrink:0;border-radius:4px;background:transparent;color:var(--color-muted-foreground,#5b6a7e);cursor:pointer}.ds-recipient-remove:hover,.ds-recipient-remove:active{background:var(--color-border,#dfe7ef);color:var(--primary,#06285d)}.ds-recipient-remove:focus-visible{outline:2px solid var(--color-ring,#4878aa);outline-offset:3px}.ds-recipient-remove:disabled{cursor:not-allowed}.ds-recipient-input{font-family:inherit;flex:1 1 170px;min-width:120px;width:auto;max-width:100%;height:28px;padding:0 3px;margin:0;border:0;outline:0;border-radius:0;background:transparent;color:var(--foreground,#0b1d38);font-size:12px;box-shadow:none}.ds-recipient-input::placeholder{color:var(--color-muted-foreground,#5b6a7e)}.ds-recipient-meta{display:flex;gap:12px;justify-content:space-between;align-items:flex-start;margin-top:8px;color:#657388;font-size:10px;line-height:1.8}.ds-recipient-meta p{margin:0}.ds-recipient-meta>span{white-space:nowrap;font-variant-numeric:tabular-nums}.ds-recipient-suggestions{margin-top:5px;padding:5px;background:var(--color-surface,#fff);border:1px solid var(--color-border,#dfe7ef);border-radius:8px;box-shadow:0 8px 24px rgb(11 29 56 / 12%);max-height:240px;overflow-y:auto}.ds-recipient-option{display:flex;align-items:center;gap:9px;min-height:43px;padding:8px;border-radius:5px;cursor:pointer}.ds-recipient-option:hover,.ds-recipient-option[aria-selected=true]{background:var(--color-accent,#eaf0f7)}.ds-recipient-option-avatar{display:grid;place-items:center;flex-shrink:0;width:29px;height:29px;background:var(--color-secondary,#eef3f8);color:var(--primary,#06285d);border-radius:50%;font-size:10px;font-weight:500}.ds-recipient-option-copy{min-width:0;flex:1}.ds-recipient-option-copy strong,.ds-recipient-option-copy small{display:block;overflow-wrap:anywhere}.ds-recipient-option-copy strong{font-size:12px;font-weight:500}.ds-recipient-option-copy small{font-size:10px;color:var(--color-muted-foreground,#5b6a7e);margin-top:2px}"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Operating Desk",
+    "overview": "An operating desk for public notices: calm, compact, and explicit about the monitor\u2019s actual state. Navy carries brand, navigation, and the main action; white and pale blue separate the working surfaces. Restrained green marks source continuity and healthy outcomes.\n\nThe user-pinned navy-and-white theme and shadcnblocks sidebar foundation define the visual world. System sans-serif typography handles operational content; Georgia lends the source identity and sign-in heading a modest institutional character. Notivo owns the identity: NMC is identified as the source, without institute or official NMC logos.",
+    "keyCharacteristics": [
+      "Compact operational hierarchy with readable notice titles.",
+      "Flat white panels on a pale blue workspace.",
+      "Navy actions, restrained semantic status color, and thin dividers.",
+      "A persistent desktop sidebar that becomes a mobile sheet."
+    ],
+    "rules": [
+      {
+        "name": "The State Before Decoration Rule",
+        "body": "Semantic colors explain actual state; they are not a second brand palette.",
+        "section": "colors"
+      },
+      {
+        "name": "The Flat Workspace Rule",
+        "body": "Separate ordinary content with tone, spacing, and borders; reserve pronounced elevation for overlays.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do preserve the navy-and-white theme and shadcnblocks sidebar foundation.",
+      "Do show semantic status with a text label as well as color.",
+      "Do allow long notice titles, errors, and addresses to wrap.",
+      "Do retain visible keyboard focus and reduced-motion support.",
+      "Do keep Select chevrons vertically centered at the right and checkbox labels separated by the established (9px) gap.",
+      "Do keep routine email/password sign-in distinct from one-time admin setup, and show form feedback next to the action it describes.",
+      "Do identify Notivo as the private workspace and NMC as the document source."
+    ],
+    "donts": [
+      "Don\u2019t use the SNMIH logo or official NMC logos, or imply official NMC affiliation.",
+      "Don\u2019t turn status color into decorative page-wide emphasis.",
+      "Don\u2019t replace the flat panel hierarchy with pervasive shadows.",
+      "Don\u2019t truncate notice titles merely to equalize row height."
+    ]
+  }
+}

@@ -15,14 +15,15 @@ The current implementation is a TypeScript Cloudflare Worker with Cloudflare D1 
 - Checks the newest three pages on subsequent runs.
 - A rolling scan of older pages to find backdated additions and changes.
 - Notices identified by their download ID, rather than dates, numeric ordering, or the website’s “New” badge.
-- Emails for new notices and changes to titles, publication dates, or document URLs.
+- Emails for genuinely new entries after the starting baseline, regardless of publication date. Existing-entry metadata changes remain in history without notification emails.
 - A transactional outbox, separate messages per recipient, bounded retries, and Resend idempotency keys.
 - A database lease to prevent overlapping scans and sends.
 - Authenticated JSON status, manual run, send, and email preview endpoints.
+- A private React portal with searchable notice history, email activity, check history, previews, and scan-only manual checks.
 - A public health endpoint and structured Worker logs.
 - Tests running in the actual local Workers runtime with D1.
 
-There is no dashboard in this first version. If we add one, use React and shadcnblocks as agreed.
+The portal uses the free [shadcnblocks Sidebar 1](https://www.shadcnblocks.com/block/sidebar1) foundation and editable shadcn/ui components, customized to the approved navy-and-white theme. It is served by the same Worker as the API.
 
 ## Architecture
 
@@ -34,9 +35,9 @@ Cron → fetch NMC HTML → HTMLRewriter → compare with D1
                                Resend → original NMC link
 ```
 
-Cloudflare hosts the application and all persistent application data. D1 contains notice metadata, versions, recipient delivery records, and scan progress. API keys and the admin token are Worker secrets. No R2 bucket is needed.
+Cloudflare hosts the application and all persistent application data. D1 contains notice metadata, versions, recipient delivery records, scan progress, admin accounts/sessions, and dashboard settings. Passwords are hashed by Better Auth. Dashboard Resend keys are encrypted with AES-GCM; the encryption key, authentication secret, and bootstrap/CLI token remain Worker secrets. No R2 bucket is needed.
 
-The only runtime dependency is `entities`, which decodes HTML punctuation in notice titles. HTTP requests use the Workers Fetch API, including Resend’s email API.
+The Worker uses `entities` to decode HTML punctuation in notice titles and the Workers Fetch API for HTTP requests, including Resend. The portal uses React, Vite, Tailwind CSS, shadcn/ui, and Lucide icons. Its compiled assets are served through Cloudflare Workers Static Assets.
 
 ## Local setup
 
@@ -47,7 +48,7 @@ npm ci
 cp .dev.vars.example .dev.vars
 ```
 
-Edit `.dev.vars`: replace `ADMIN_TOKEN` with a random value of at least 24 characters, set `EMAIL_TO`, and leave `EMAIL_ENABLED=false`. A local token can be generated with:
+Edit `.dev.vars`: replace `ADMIN_TOKEN` with a random value of at least 24 characters. It protects first-time account creation, CLI access, and account recovery. Initial email settings are optional here because you can configure them in the dashboard. Leave `EMAIL_ENABLED=false` until you are ready to send. Generate a local token with:
 
 ```sh
 openssl rand -hex 32
@@ -58,6 +59,38 @@ Then initialize local D1:
 ```sh
 npm run db:migrate:local
 ```
+
+### Open the private portal
+
+```sh
+npm run dev
+```
+
+Open **http://localhost:8787** (or the URL Wrangler prints). On your first visit, create the admin account with your name, email, a password of 12–128 characters, and the `ADMIN_TOKEN` from `.dev.vars` as a one-time setup token. Future visits use email and password. Public registration is disabled, and the database permits one admin account.
+
+`npm run dev` automatically initializes missing local `BETTER_AUTH_SECRET` and `SETTINGS_ENCRYPTION_KEY` values in the ignored `.dev.vars` file, without printing them. Existing values are preserved. Wrangler builds the portal automatically and rebuilds when `portal/src` changes. Keep this terminal running while using the portal.
+
+- **Overview:** monitor health, notice counts, queue status, recent publications, and checks.
+- **Notice archive:** search by title or notice ID, filter new/updated/imported notices, and browse pages of 20.
+- **Email activity:** inspect pending, accepted, failed, and uncertain emails, including retry times and errors. Cancelled alerts are hidden by default; choose **Cancelled** or **All statuses** to view their retained history. Accepted means accepted by Resend, not confirmed inbox delivery.
+- **Check history:** browse the most recent 1,000 checks.
+- **Configuration:** edit recipients, sender, Resend key, email sending, automatic monitoring, minimum check interval, and per-cycle limits. Update your password here as well.
+- **Account details:** the sidebar shows the signed-in admin's name, initials, and email from the authenticated session.
+- **Recipient badges:** add addresses with Enter, comma, or Tab, paste an address list, and remove individual badges. Suggestions include your account and saved recipients. Addresses are validated, deduplicated, and limited to 20; Save also includes a valid address still being typed.
+- **Check for notices:** scan NMC and queue changes without sending email during this action. Scheduled deployed cycles send eligible mail when enabled.
+- **Email preview:** view the latest stored notice in the selected template without sending anything.
+
+Better Auth manages password hashing and eight-hour database sessions. Cookies are HttpOnly, SameSite=Strict, and Secure on HTTPS; session refresh is disabled so eight hours is the maximum lifetime. Sign out revokes the session on the server. Credentials are not stored in localStorage or sessionStorage. Browser mutations require a matching Origin. Sign-in attempts are rate-limited with D1 counters. Serve deployed portals over HTTPS.
+
+Settings are saved in D1 and override their environment defaults after the first save. They apply to subsequent scans/sends and do not require redeployment. Saving settings does not send email. Enabling sending allows future cycles to drain queued messages; existing queued messages retain their original recipients and immutable retry payloads. Pausing automatic monitoring pauses both scheduled checks and sends, while manual checks remain available.
+
+The scheduler still wakes every 15 minutes and evaluates the configured minimum interval (15 minutes through 24 hours). Local development does not automatically execute this schedule. The Resend key field is write-only: blank keeps the current key; the remove checkbox explicitly removes it, including an inherited environment key. Preserve `SETTINGS_ENCRYPTION_KEY` when restarting or redeploying. If it is lost, restore it or save a replacement Resend key with a new encryption key.
+
+If you lose the password, the installation owner can run `npm run admin -- reset-login` with `ADMIN_TOKEN`. This explicitly deletes the admin account and revokes all its sessions; notices, settings, and email history remain. Then create a new account through the portal. Password recovery by email and multiple admin accounts are not included.
+
+For an existing deployment, apply `npm run db:migrate:remote` before deploying this update. For local databases, `npm run db:migrate:local` adds the authentication/settings tables while preserving the archive.
+
+### Command-line administration
 
 Run commands directly in the same terminal:
 
@@ -92,7 +125,7 @@ Configure `EMAIL_TO` with one recipient, `EMAIL_FROM` with your sender, and `RES
 npm run admin -- test-email --dry-run
 ```
 
-To send one real email, set `EMAIL_ENABLED=true`, then explicitly run:
+To send one real email, enable email sending in Configuration (or set `EMAIL_ENABLED=true` if dashboard settings have not been saved), then explicitly run:
 
 ```sh
 npm run admin -- test-email
@@ -136,12 +169,16 @@ After baseline, every run reads the latest three pages. When an archive audit is
 
    ```sh
    npx wrangler secret put ADMIN_TOKEN
+   npx wrangler secret put BETTER_AUTH_SECRET
+   npx wrangler secret put SETTINGS_ENCRYPTION_KEY
    npx wrangler secret put EMAIL_TO
    npx wrangler secret put EMAIL_FROM
    npx wrangler secret put RESEND_API_KEY
    ```
 
-   Use a long random admin token. `EMAIL_TO` is a comma-separated list of up to 20 addresses. `EMAIL_FROM` can be `NMC Notices <notices@your-domain.com>`; its domain must be verified in Resend. The Resend key needs permission to send email.
+   Generate independent random values with `openssl rand -hex 32` for each of these three server secrets. Keep them private. `SETTINGS_ENCRYPTION_KEY` must contain exactly 64 hex characters; `BETTER_AUTH_SECRET` requires at least 32 characters. Local `.dev.vars` secrets are not deployed automatically.
+
+   Email environment secrets are optional defaults: you can configure recipients, sender, and an encrypted Resend key through the portal instead. The sender's domain must be verified in Resend, and the key needs permission to send email.
 
 5. Set `MONITOR_URL` to the deployed Worker HTTPS URL and `ADMIN_TOKEN` to its token in your terminal environment. Run:
 
@@ -151,7 +188,7 @@ After baseline, every run reads the latest three pages. When an archive audit is
    npm run admin -- preview
    ```
 
-6. After reviewing the preview and recipient list, change `EMAIL_ENABLED` to `"true"` in `wrangler.jsonc` and deploy again. Pending notifications accumulated after baseline will then be sent. This enables live email; the committed configuration leaves it disabled.
+6. Open the deployed portal, create the admin account, and review Configuration and the email preview. Enable email sending and save when ready. Pending notifications accumulated after baseline will then be sent by subsequent cycles. Dashboard values override environment defaults, including the committed `EMAIL_ENABLED=false`.
 
 Cron runs every 15 minutes. The schedule is defined in UTC, although `*/15 * * * *` has the same interval in every timezone. Store dates and timestamps in UTC.
 
@@ -163,7 +200,11 @@ Cron runs every 15 minutes. The schedule is defined in UTC, although `*/15 * * *
 | `EMAIL_TO` | unset | Comma-separated recipients; required after baseline |
 | `EMAIL_FROM` | unset | Verified Resend sender; required to send |
 | `RESEND_API_KEY` | unset | Required to send; configure as a secret |
-| `ADMIN_TOKEN` | unset | At least 24 characters; configure as a secret |
+| `ADMIN_TOKEN` | unset | At least 24 characters; first-time setup, recovery, and CLI access |
+| `BETTER_AUTH_SECRET` | unset | 32+ characters; signs login cookies; generated locally by `predev` |
+| `SETTINGS_ENCRYPTION_KEY` | unset | 64 hex characters; encrypts dashboard Resend keys; generated locally by `predev` |
+| `MONITOR_ENABLED` | `true` | Enables scheduled scans and sends; manual scans remain available when paused |
+| `CHECK_INTERVAL_MINUTES` | `15` | Minimum interval: 15, 30, 60, 120, 360, 720, or 1440 minutes |
 | `RECENT_PAGES` | `3` | Recent pages per run, maximum 3 |
 | `BASELINE_PAGES_PER_RUN` | `3` | Baseline pages per run, maximum 3 |
 | `AUDIT_PAGES_PER_RUN` | `2` | Older audit pages per run, maximum 2 |
@@ -173,17 +214,32 @@ These limits bound requests and D1 operations per invocation. The outbox is inte
 
 ## Endpoints
 
-All `/admin/*` routes require `Authorization: Bearer <ADMIN_TOKEN>`. Responses are not cached. Do not put tokens in URLs.
+Tracking and configuration routes require `Authorization: Bearer <ADMIN_TOKEN>` or a valid Better Auth session. Authentication info and sign-in are public; setup additionally requires the bootstrap bearer token and permits only the first account. Browser auth requests and cookie-authenticated mutations require a matching `Origin`. Responses are not cached. Do not put credentials in URLs.
 
 | Method | Path | Purpose |
 | --- | --- | --- |
 | GET | `/health` | 200 after a recent successful scan, otherwise 503 |
+| GET | `/` | Private portal sign-in and application shell; tracking data requires authentication |
+| GET | `/admin/auth/info` | Reports whether first-time setup is complete; exposes no account details |
+| POST | `/admin/auth/setup` | Create the first admin; requires bootstrap token and same Origin |
+| POST | `/admin/auth/sign-in/email` | Email/password sign-in with persistent rate limiting |
+| POST | `/admin/auth/sign-out` | Revoke the current session |
+| GET | `/admin/auth/get-session` | Better Auth session state |
+| POST | `/admin/auth/change-password` | Verify current password and update it |
+| GET | `/admin/session` | Check authentication |
+| DELETE | `/admin/account` | Explicit owner recovery; requires bearer token; deletes admin and sessions |
+| GET | `/admin/settings` | Current settings, revision, and key readiness; never returns the API key |
+| PUT | `/admin/settings` | Validated, versioned settings update; encrypts replacement API keys |
 | GET | `/admin/status` | Baseline/audit progress, counts, last scans, and failed emails |
+| GET | `/admin/notices` | Paginated archive; `page`, `q`, and `kind=all\|new\|updated\|baseline` |
+| GET | `/admin/emails` | Paginated email history; `page`, `q`, and `status=non_cancelled\|all\|pending\|accepted\|failed\|uncertain\|cancelled`; defaults to `non_cancelled` |
+| GET | `/admin/runs` | Paginated check history; `page` |
 | GET | `/admin/preview` | HTML email preview from a real stored notice |
 | GET | `/admin/preview?format=json` | Preview payload as JSON |
 | GET | `/admin/test-email` | Dry-run test payload using configured sender and recipient |
 | POST | `/admin/test-email` | Send one test email; requires a UUID `Idempotency-Key` header |
 | POST | `/admin/run` | Baseline/monitor cycle plus enabled email sends |
+| POST | `/admin/check` | Scan and queue changes without sending emails |
 | POST | `/admin/send` | Retry eligible pending email without scanning |
 
 An overlapping mutation returns 409. A scan or sender configuration failure returns 502 and is recorded in the logs. Failed parsing never advances the scan cursor or commits a partial scan. The latest 1,000 run summaries are retained.
@@ -192,12 +248,13 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 
 - Notice changes and outbox records are committed together in a D1 batch transaction.
 - Each recipient gets a separate message. Retries use an immutable payload and a deterministic idempotency key.
-- Temporary failures remain pending with exponential backoff, up to one hour between attempts. The 15-minute cron interval determines the actual retry timing.
+- Temporary failures remain pending with exponential backoff, up to one hour between attempts. The configured scheduled-cycle interval determines when a due retry is actually attempted.
 - Resend keeps idempotency keys for 24 hours. Automatic retries stop after 23 hours from the first attempt and mark the record `uncertain`. Inspect the Resend dashboard before manually resending; this prevents automatic duplicates after key expiry.
 - Permanent provider failures become `failed`. Inspect `/admin/status` and Worker logs, fix configuration, and reconcile the record with Resend before manually changing its state. There is deliberately no blind “resend everything” endpoint.
 - `accepted` means Resend accepted the request. Inbox delivery and bounce tracking would require Resend webhooks, which are not included yet.
 - A changed PDF served at the same URL cannot be detected from listing metadata alone. This version does not fetch PDFs or compute document checksums.
-- Entries without a document link use a derived identity based on their title and date and link to the listing. Changes to such entries appear as new notices because NMC exposes no stable ID for them.
+- Entries without a document link use title/date identity and link to the listing. When an unambiguous matching entry gains a download link, Notivo promotes its identity while preserving the original first-seen time and history. Distinct linked download IDs are preserved when matching is ambiguous. Changes to both title/date while no stable ID exists cannot be reliably distinguished from a new entry.
+- Listing totals count NMC's rows; the dashboard separately counts deduplicated tracked identities. These numbers can differ. A new “New” badge or a change in the raw total is not enough to trigger an alert.
 - Malformed source dates are stored as unavailable. The parser does not guess corrected years.
 - Documents remain hosted by NMC. Their availability and content can change at the source.
 
@@ -211,12 +268,14 @@ npm test
 npm run build
 ```
 
-Tests use local D1 and mocked outbound requests; they never send email. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` performs a dry run and creates `dist/` without deploying.
+Tests use local D1 and mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
 
 Development dependency overrides keep `undici` and `zod` on compatible patched releases. The lockfile records the tested versions.
 
 ## References
 
+- [Better Auth database and native D1 support](https://better-auth.com/docs/concepts/database)
+- [Better Auth email and password authentication](https://better-auth.com/docs/authentication/email-password)
 - [Workers HTMLRewriter](https://developers.cloudflare.com/workers/runtime-apis/html-rewriter/)
 - [D1 batch transactions](https://developers.cloudflare.com/d1/worker-api/d1-database/)
 - [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)

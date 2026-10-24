@@ -2,6 +2,8 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "nmc-notice-monitor",
   "main": "src/index.ts",
+  "build": { "command": "npm run build:portal", "watch_dir": "portal/src" },
+  "assets": { "directory": "./portal/dist", "binding": "ASSETS", "run_worker_first": true },
   "compatibility_date": "2026-10-24",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },

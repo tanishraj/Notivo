@@ -11,7 +11,7 @@ describe('administration endpoints', () => {
     expect((await worker.fetch(new Request('https://monitor.example/admin/status'), settings())).status).toBe(401);
     expect((await worker.fetch(new Request('https://monitor.example/admin/run', { method: 'POST' }), settings())).status).toBe(401);
     expect((await worker.fetch(new Request('https://monitor.example/admin/test-email', { method: 'POST' }), settings())).status).toBe(401);
-    expect((await worker.fetch(new Request('https://monitor.example/admin/status'), settings({ ADMIN_TOKEN: '' }))).status).toBe(503);
+    expect((await worker.fetch(new Request('https://monitor.example/admin/status'), settings({ ADMIN_TOKEN: '' }))).status).toBe(401);
   });
 
   it('reports readiness and returns private status with a valid token', async () => {

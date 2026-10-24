@@ -1,6 +1,11 @@
 export interface Env {
   DB: D1Database;
+  ASSETS?: { fetch(request: Request): Promise<Response> };
   ADMIN_TOKEN?: string;
+  BETTER_AUTH_SECRET?: string;
+  SETTINGS_ENCRYPTION_KEY?: string;
+  MONITOR_ENABLED?: string;
+  CHECK_INTERVAL_MINUTES?: string;
   EMAIL_ENABLED?: string;
   EMAIL_TO?: string;
   EMAIL_FROM?: string;
@@ -26,6 +31,7 @@ export interface Listing {
 }
 
 export interface State {
+  source_total: number | null;
   baseline_next_page: number;
   baseline_completed_at: string | null;
   audit_next_page: number;
@@ -38,7 +44,7 @@ export interface State {
 export interface Version {
   id: string;
   notice_id: string;
-  kind: 'new' | 'updated';
+  kind: "new" | "updated";
   title: string;
   published_on: string | null;
   document_url: string | null;
@@ -55,31 +61,55 @@ export interface MailPayload {
 
 export type Fetcher = typeof fetch;
 
-export const SOURCE_URL = 'https://nmc.org.in/whats-new';
-export const RESEND_URL = 'https://api.resend.com/emails';
+export const SOURCE_URL = "https://nmc.org.in/whats-new";
+export const RESEND_URL = "https://api.resend.com/emails";
 
 export function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
 export async function sha256(value: string): Promise<string> {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
-  return [...new Uint8Array(hash)].map((n) => n.toString(16).padStart(2, '0')).join('');
+  const hash = await crypto.subtle.digest(
+    "SHA-256",
+    new TextEncoder().encode(value),
+  );
+  return [...new Uint8Array(hash)]
+    .map((n) => n.toString(16).padStart(2, "0"))
+    .join("");
 }
 
-export function intSetting(value: string | undefined, fallback: number, max: number): number {
+export function intSetting(
+  value: string | undefined,
+  fallback: number,
+  max: number,
+): number {
   if (value === undefined) return fallback;
   const number = Number(value);
   if (!Number.isInteger(number) || number < 1 || number > max) {
-    throw new Error(`Invalid numeric setting: expected an integer between 1 and ${max}`);
+    throw new Error(
+      `Invalid numeric setting: expected an integer between 1 and ${max}`,
+    );
   }
   return number;
 }
 
 export function recipients(env: Env): string[] {
-  const values = [...new Set((env.EMAIL_TO ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean))];
-  if (!values.length || values.length > 20 || values.some((v) => !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(v))) {
-    throw new Error('Set EMAIL_TO to 1–20 comma-separated email addresses before monitoring new notices');
+  const values = [
+    ...new Set(
+      (env.EMAIL_TO ?? "")
+        .split(",")
+        .map((s) => s.trim().toLowerCase())
+        .filter(Boolean),
+    ),
+  ];
+  if (
+    !values.length ||
+    values.length > 20 ||
+    values.some((v) => !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(v))
+  ) {
+    throw new Error(
+      "Set EMAIL_TO to 1–20 comma-separated email addresses before monitoring new notices",
+    );
   }
   return values;
 }
