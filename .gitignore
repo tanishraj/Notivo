@@ -1,0 +1,20 @@
+node_modules/
+.wrangler/
+dist/
+.dev.vars
+.dev.vars.*
+!.dev.vars.example
+.env
+.env.*
+!.env.example
+coverage/
+*.log
+.DS_Store
+
+# Generated design previews; recreate with the scripts in scripts/.
+designs/email-options/*.html
+designs/email-options/*.png
+designs/email-options/assets/
+designs/grouped-email/preview.html
+designs/grouped-email/preview.json
+designs/grouped-email/preview.png

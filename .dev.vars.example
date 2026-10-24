@@ -1,0 +1,6 @@
+# Copy to .dev.vars for local development. Never commit .dev.vars.
+ADMIN_TOKEN=replace-with-a-long-random-token
+EMAIL_TO=your-address@example.com
+EMAIL_FROM=NMC Notices <notices@your-verified-domain.com>
+RESEND_API_KEY=
+EMAIL_ENABLED=false

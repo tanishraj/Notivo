@@ -1,0 +1,37 @@
+{
+  "name": "notivo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "wrangler dev",
+    "db:migrate:local": "wrangler d1 migrations apply nmc-notices --local",
+    "db:migrate:remote": "wrangler d1 migrations apply nmc-notices --remote",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "wrangler deploy --dry-run --outdir dist",
+    "deploy": "wrangler deploy",
+    "admin": "node scripts/admin.mjs",
+    "email:preview": "node scripts/admin.mjs preview --html",
+    "email:preview:grouped": "node scripts/grouped-email-preview.mjs"
+  },
+  "overrides": {
+    "undici": "^7.30.1",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "^1.4.7",
+    "@cloudflare/workers-types": "^5.20261024.1",
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.5",
+    "wrangler": "^4.152.0"
+  },
+  "dependencies": {
+    "entities": "^8.1.0"
+  }
+}
