@@ -156,6 +156,8 @@ Production portal: [notivo.notivo.workers.dev](https://notivo.notivo.workers.dev
 
 Use the named `production` environment for the hosted application. The base configuration remains for local development, so production deployment does not replace the local database binding.
 
+Production enables `keep_vars` to preserve dashboard-managed variables across deployments. Store credentials such as `RESEND_API_KEY` as Worker secrets. Deployment does not upload local `.dev.vars` files.
+
 1. Sign in. Create a D1 database only when setting up a new installation; this installation already has `nmc-notices`:
 
    ```sh

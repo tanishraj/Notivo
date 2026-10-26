@@ -28,6 +28,7 @@
       "name": "notivo",
       "account_id": "97ac2e243aea8618cadae1d3a73202bb",
       "workers_dev": true,
+      "keep_vars": true,
       "vars": {
         "EMAIL_ENABLED": "false",
         "RECENT_PAGES": "3",
