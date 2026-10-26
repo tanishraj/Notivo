@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import {
   Activity,
   ArrowDownLeft,
@@ -21,7 +21,7 @@ import {
   ShieldCheck,
   X,
 } from "lucide-react";
-import { Dialog } from "radix-ui";
+import { Dialog, Tabs } from "radix-ui";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -339,7 +339,7 @@ function Overview({
     !status.state.consecutive_failures,
   );
   const baseline = Boolean(status.state.baseline_completed_at);
-  const attention = (counts.failed ?? 0) + (counts.uncertain ?? 0);
+  const attention = status.emailAttentionCount;
   return (
     <>
       <div
@@ -671,36 +671,90 @@ function Emails({
   retry: () => void;
   status: Status;
 }) {
-  const [filter, setFilter] = useState("non_cancelled");
+  const [view, setView] = useState("queue");
+  const [filter, setFilter] = useState("all");
   const [page, setPage] = useState(1);
   const [sendResult, setSendResult] = useState({ text: "", error: false });
+  const [reviewBusy, setReviewBusy] = useState<string | null>(null);
+  const reviewInFlight = useRef(false);
   const pending = status.emails.find((item) => item.status === "pending")?.count ?? 0;
   const list = useList<Email>(
-    `emails?status=${filter}&page=${page}`,
+    `emails?view=${view}&status=${view === "history" ? filter : "all"}&page=${page}`,
     revision,
     onExpired,
   );
+  async function reviewAttempt(email: Email, dismiss: boolean) {
+    if (reviewInFlight.current) return;
+    reviewInFlight.current = true;
+    setReviewBusy(email.id);
+    setSendResult({ text: "", error: false });
+    try {
+      await api(`emails/${email.delivery_source}/${email.id}/${dismiss ? "dismiss" : "restore"}`, { method: "POST" });
+      setSendResult({ text: dismiss
+        ? "Attempt dismissed. Its history is preserved; no email was sent."
+        : email.resolved
+          ? "Attempt restored. A later accepted email already resolved it; no email was sent."
+          : "Attempt restored to Needs attention. No email was sent.", error: false });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) onExpired();
+      setSendResult({ text: (error as Error).message, error: true });
+    } finally {
+      reviewInFlight.current = false;
+      setReviewBusy(null);
+      retry();
+    }
+  }
+  async function retryAttempt(email: Email) {
+    if (reviewInFlight.current) return;
+    reviewInFlight.current = true;
+    setReviewBusy(email.id);
+    setSendResult({ text: "", error: false });
+    try {
+      const result = await api<{ deliveryStatus: string }>(`emails/${email.delivery_source}/${email.id}/retry`, {
+        method: "POST", headers: { "Idempotency-Key": crypto.randomUUID() },
+      });
+      setSendResult({ error: ["failed", "uncertain"].includes(result.deliveryStatus), text: result.deliveryStatus === "accepted"
+        ? `Retry accepted by Resend for ${email.recipient}. The earlier attempt remains in History.`
+        : result.deliveryStatus === "pending"
+          ? "Retry queued. Any temporary failure will be retried automatically; check Queue for its next attempt."
+          : "The retry needs review. See the latest attempt in Needs attention for details." });
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) onExpired();
+      setSendResult({ text: `${(error as Error).message} Refresh the activity before trying again.`, error: true });
+    } finally {
+      reviewInFlight.current = false;
+      setReviewBusy(null);
+      retry();
+    }
+  }
   return (
     <>
       <div className="info-note">
         <Mail size={18} />
         <p>
-          “Accepted” means Resend accepted the request. Inbox delivery is not
-          tracked. Pending emails retry automatically; failed and uncertain
-          emails need review. Cancelled alerts are hidden by default and remain
-          available in the status filter.
+          Successful sends leave the queue automatically. Review failed or
+          uncertain attempts in Needs attention. All completed attempts remain
+          in History; “accepted” means accepted by Resend, not confirmed inbox delivery.
         </p>
       </div>
       <section className="panel">
+        <Tabs.Root value={view} onValueChange={(value) => { setView(value); setPage(1); setSendResult({ text: "", error: false }); }}>
+        <Tabs.List className="email-view-tabs" aria-label="Email activity views">
+          <Tabs.Trigger className="email-view-tab" value="queue">Queue <span>{pending}</span></Tabs.Trigger>
+          <Tabs.Trigger className="email-view-tab" value="attention">Needs attention <span>{status.emailAttentionCount}</span></Tabs.Trigger>
+          <Tabs.Trigger className="email-view-tab" value="history">History</Tabs.Trigger>
+        </Tabs.List>
+        <Tabs.Content value={view}>
         <div className="list-toolbar">
           <div className="email-log-heading">
-            <h2>Email log</h2>
+            <h2>{view === "queue" ? "Email queue" : view === "attention" ? "Needs attention" : "Email history"}</h2>
             <p id="pending-email-help">{status.emailEnabled
               ? `${pending} pending. Uses your saved send limit.`
               : "Email sending is disabled. Enable it in Configuration."}</p>
           </div>
           <div className="email-log-controls">
           <SendPendingEmails enabled={status.emailEnabled} pending={pending} onComplete={retry} onExpired={onExpired} onResult={setSendResult} />
+          {view === "history" ? (
           <div className="select-label">
             <Select
               value={filter}
@@ -713,18 +767,16 @@ function Emails({
                 <SelectValue />
               </SelectTrigger>
               <SelectContent position="popper">
-                <SelectItem value="non_cancelled">
-                  All except cancelled
-                </SelectItem>
                 <SelectItem value="all">All statuses</SelectItem>
-                <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="accepted">Accepted by Resend</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
                 <SelectItem value="uncertain">Uncertain</SelectItem>
                 <SelectItem value="cancelled">Cancelled</SelectItem>
+                <SelectItem value="dismissed">Dismissed</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          ) : null}
           </div>
         </div>
         {sendResult.text ? <div className="email-action-feedback"><EmailActionResult {...sendResult} /></div> : null}
@@ -736,6 +788,7 @@ function Emails({
               {list.data.items.map((email) => (
                 <article className="email-row" key={email.id}>
                   <div className="email-row-top">
+                    <div className="email-badges">
                     <Badge
                       tone={
                         email.status === "accepted"
@@ -751,13 +804,15 @@ function Emails({
                         ? "Accepted by Resend"
                         : email.status}
                     </Badge>
+                    {email.dismissed_at ? <Badge>Dismissed</Badge> : email.resolved ? <Badge tone="green">Resolved</Badge> : email.retried ? <Badge>Retried</Badge> : null}
+                    </div>
                     <time dateTime={email.created_at}>
                       {date(email.created_at, true)}
                     </time>
                   </div>
                   <h3>{cleanTitle(email.title)}</h3>
                   <p className="email-recipient">
-                    To {email.recipient} · NMC {email.notice_id}{email.delivery_source === "manual" ? " · Manually sent" : ""}
+                    To {email.recipient} · NMC {email.notice_id}{email.retry_of_id ? " · Manual retry" : email.delivery_source === "manual" ? " · Manually sent" : ""}
                   </p>
                   <div className="email-details">
                     <span>
@@ -777,11 +832,23 @@ function Emails({
                       url={email.document_url}
                       title={email.title}
                     />
+                    {email.status === "failed" && !email.resolved && !email.retried ? <Button
+                      variant="outline" size="sm" disabled={reviewBusy !== null || Boolean(email.retry_pending) || !status.emailEnabled}
+                      onClick={() => retryAttempt(email)} aria-label={`Retry email to ${email.recipient}, notice ${email.notice_id}`}
+                    ><RefreshCw size={14} className={reviewBusy === email.id ? "spin" : ""} />{email.retry_pending ? "Email already queued" : "Retry"}</Button> : null}
+                    {["failed", "uncertain"].includes(email.status) ? <Button
+                      variant="outline" size="sm" disabled={reviewBusy !== null}
+                      onClick={() => reviewAttempt(email, !email.dismissed_at)}
+                      aria-label={`${email.dismissed_at ? "Restore" : "Dismiss"} attempt for ${email.recipient}, notice ${email.notice_id}`}
+                    >{reviewBusy === email.id ? <LoaderCircle size={14} className="spin" /> : null}{email.dismissed_at ? "Restore" : "Dismiss"}</Button> : null}
                   </div>
+                  {email.resolved ? <p className="email-state-note">A later email for this notice was accepted for this recipient. This earlier attempt remains in history.</p> : null}
+                  {email.retried && !email.resolved ? <p className="email-state-note">A newer retry is recorded in Queue or History. This earlier attempt remains in history.</p> : null}
+                  {email.dismissed_at ? <p className="email-state-note">Dismissed {date(email.dismissed_at, true)}. Restore to review this attempt again.</p> : null}
                   {email.last_error ? (
                     <p
                       className={
-                        email.status === "cancelled"
+                        email.status === "cancelled" || email.dismissed_at || email.resolved || email.retried
                           ? "email-provider-id"
                           : "email-error"
                       }
@@ -801,14 +868,14 @@ function Emails({
             <Empty
               icon={<Mail />}
               title={
-                filter === "all" || filter === "non_cancelled"
-                  ? "No email activity yet"
-                  : `No ${filter} emails`
+                view === "queue" ? "Your queue is clear"
+                  : view === "attention" ? "No emails need attention"
+                  : filter === "all" ? "No email history yet" : `No ${filter} emails`
               }
             >
-              {filter === "all" || filter === "non_cancelled"
-                ? "Emails appear here when a genuinely new entry is detected after the starting archive import."
-                : "Choose another status to see more activity."}
+              {view === "queue" ? "New notice emails appear here while waiting to send. Completed attempts are available in History."
+                : view === "attention" ? "Failed or uncertain attempts appear here until dismissed or resolved by a later accepted email."
+                : "Completed and dismissed attempts are retained here. Choose another status to see more activity."}
             </Empty>
           )
         ) : (
@@ -821,6 +888,8 @@ function Emails({
             loading={list.loading}
           />
         ) : null}
+        </Tabs.Content>
+        </Tabs.Root>
       </section>
     </>
   );
@@ -1184,7 +1253,7 @@ export function App() {
             ) : page === "emails" ? (
               <Emails
                 status={status}
-                revision={revision}
+                revision={revision + poll}
                 onExpired={expiredEvent}
                 retry={refresh}
               />

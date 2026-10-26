@@ -221,7 +221,7 @@ export async function ingest(
 }
 
 export async function status(env: Env) {
-  const [state, counts, outbox, runs, problems] = await Promise.all([
+  const [state, counts, outbox, runs, problems, attention] = await Promise.all([
     getState(env.DB),
     env.DB.prepare("SELECT COUNT(*) AS notices FROM notices").first(),
     env.DB.prepare(
@@ -230,8 +230,9 @@ export async function status(env: Env) {
     env.DB.prepare("SELECT * FROM runs ORDER BY id DESC LIMIT 10").all(),
     env.DB.prepare(
       `SELECT delivery_id AS id, recipient, status, attempts, next_attempt_at, last_error
-      FROM email_deliveries WHERE status IN ('failed', 'uncertain') ORDER BY created_at DESC LIMIT 20`,
+      FROM email_activity_current WHERE status IN ('failed', 'uncertain') AND dismissed_at IS NULL AND resolved = 0 AND retried = 0 ORDER BY created_at DESC LIMIT 20`,
     ).all(),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM email_activity_current WHERE status IN ('failed', 'uncertain') AND dismissed_at IS NULL AND resolved = 0 AND retried = 0").first<{ count: number }>(),
   ]);
   return {
     state,
@@ -239,6 +240,7 @@ export async function status(env: Env) {
     emails: outbox.results,
     recentRuns: runs.results,
     emailProblems: problems.results,
+    emailAttentionCount: attention?.count ?? 0,
     emailEnabled: env.EMAIL_ENABLED === "true",
     monitorEnabled: env.MONITOR_ENABLED !== "false",
     checkIntervalMinutes: Number(env.CHECK_INTERVAL_MINUTES ?? 15),

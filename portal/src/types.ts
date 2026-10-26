@@ -28,6 +28,7 @@ export interface Status {
   };
   counts: { notices: number };
   emails: { status: EmailStatus; count: number }[];
+  emailAttentionCount: number;
   recentRuns: Run[];
   emailEnabled: boolean;
   monitorEnabled: boolean;
@@ -64,6 +65,11 @@ export interface Email {
   document_url: string | null;
   kind: "new" | "updated";
   delivery_source: "automatic" | "manual";
+  dismissed_at: string | null;
+  resolved: number;
+  retried: number;
+  retry_pending: number;
+  retry_of_id: string | null;
 }
 export interface List<T> {
   items: T[];

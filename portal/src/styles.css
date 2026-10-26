@@ -2103,6 +2103,47 @@ td:first-child {
   flex-wrap: wrap;
   gap: 10px;
 }
+.email-view-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 7px 14px 0;
+  border-bottom: 1px solid #e7edf4;
+}
+.email-view-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 10px;
+  border-bottom: 2px solid transparent;
+  color: #5b6a7e;
+  font-size: 12px;
+}
+.email-view-tab[data-state="active"] {
+  border-bottom-color: #06285d;
+  color: #06285d;
+  font-weight: 600;
+}
+.email-view-tab:hover {
+  background: #eef3f8;
+}
+.email-view-tab > span {
+  padding: 1px 6px;
+  border-radius: 4px;
+  background: #eef3f8;
+  font-variant-numeric: tabular-nums;
+}
+.email-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.email-state-note {
+  margin-top: 14px;
+  color: #5b6a7e;
+  font-size: 11px;
+  line-height: 1.65;
+}
 .email-log-heading {
   min-width: 0;
 }

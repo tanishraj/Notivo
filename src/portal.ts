@@ -1,4 +1,5 @@
 import type { Env } from "./types";
+import { InputError } from "./auth";
 
 export class QueryError extends Error {}
 
@@ -46,7 +47,10 @@ export async function noticeHistory(env: Env, url: URL) {
 
 export async function emailHistory(env: Env, url: URL) {
   const { page, pageSize, query, offset } = pageOptions(url);
-  const status = url.searchParams.get("status") ?? "non_cancelled";
+  const view = url.searchParams.get("view") ?? "all";
+  if (!["all", "queue", "attention", "history"].includes(view))
+    throw new QueryError("Unknown email view");
+  const status = url.searchParams.get("status") ?? (view === "history" ? "all" : "non_cancelled");
   if (
     ![
       "all",
@@ -56,31 +60,51 @@ export async function emailHistory(env: Env, url: URL) {
       "failed",
       "uncertain",
       "cancelled",
+      "dismissed",
     ].includes(status)
   )
     throw new QueryError("Unknown email status");
-  const where = `WHERE (title LIKE ? ESCAPE '\\' OR recipient LIKE ? ESCAPE '\\')${status === "all" ? "" : status === "non_cancelled" ? " AND status <> 'cancelled'" : " AND status = ?"}`;
+  const viewWhere = view === "queue" ? " AND status = 'pending'"
+    : view === "attention" ? " AND status IN ('failed', 'uncertain') AND dismissed_at IS NULL AND resolved = 0 AND retried = 0"
+    : view === "history" ? " AND status <> 'pending'" : "";
+  const where = `WHERE (title LIKE ? ESCAPE '\\' OR recipient LIKE ? ESCAPE '\\')${viewWhere}${status === "all" ? "" : status === "dismissed" ? " AND dismissed_at IS NOT NULL" : status === "non_cancelled" ? " AND status <> 'cancelled'" : " AND status = ?"}`;
   const args = [
     searchValue(query),
     searchValue(query),
-    ...(status === "all" || status === "non_cancelled" ? [] : [status]),
+    ...(["all", "non_cancelled", "dismissed"].includes(status) ? [] : [status]),
   ];
   const [total, rows] = await Promise.all([
     env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM email_deliveries ${where}`,
+      `SELECT COUNT(*) AS count FROM email_activity_current ${where}`,
     )
       .bind(...args)
       .first<{ count: number }>(),
     env.DB.prepare(
       `SELECT delivery_id AS id, recipient, status, created_at, attempts, next_attempt_at,
-      accepted_at, last_error, resend_id, notice_id, title, kind, document_url, delivery_source
-      FROM email_deliveries ${where}
+      accepted_at, last_error, resend_id, notice_id, title, kind, document_url, delivery_source, dismissed_at, resolved, retried, retry_pending, retry_of_id
+      FROM email_activity_current ${where}
       ORDER BY created_at DESC, delivery_id DESC LIMIT ? OFFSET ?`,
     )
       .bind(...args, pageSize, offset)
       .all(),
   ]);
   return { items: rows.results, total: total?.count ?? 0, page, pageSize };
+}
+
+export async function dismissEmail(env: Env, source: string, id: string, dismiss: boolean) {
+  const row = await env.DB.prepare("SELECT status FROM email_deliveries WHERE delivery_source = ? AND delivery_id = ?")
+    .bind(source, id).first<{ status: string }>();
+  if (!row) throw new InputError("Email record not found", 404);
+  if (!["failed", "uncertain"].includes(row.status))
+    throw new InputError("Only failed or uncertain attempts can be dismissed or restored");
+  if (dismiss) {
+    await env.DB.prepare("INSERT OR IGNORE INTO email_dismissals (delivery_source, delivery_id, dismissed_at) VALUES (?, ?, ?)")
+      .bind(source, id, new Date().toISOString()).run();
+  } else {
+    await env.DB.prepare("DELETE FROM email_dismissals WHERE delivery_source = ? AND delivery_id = ?")
+      .bind(source, id).run();
+  }
+  return { id, source, dismissed: dismiss };
 }
 
 export async function runHistory(env: Env, url: URL) {

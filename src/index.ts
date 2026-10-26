@@ -7,10 +7,10 @@ import {
 import { runCycle, runScheduledCycle } from "./monitor";
 import { getState, status } from "./store";
 import { errorMessage, sha256, type Env } from "./types";
-import { emailHistory, noticeHistory, QueryError, runHistory } from "./portal";
+import { dismissEmail, emailHistory, noticeHistory, QueryError, runHistory } from "./portal";
 import { authInfo, bootstrapAdmin, createAuth, InputError, readJson } from "./auth";
 import { effectiveEnv, saveSettings, settingsView } from "./config";
-import { manualEmailReview, sendNoticeManually } from "./manual-email";
+import { manualEmailReview, retryFailedEmail, sendNoticeManually } from "./manual-email";
 
 const headers = {
   "Cache-Control": "no-store",
@@ -187,6 +187,12 @@ export default {
       }
       if (url.pathname === "/admin/emails" && request.method === "GET")
         return json(await emailHistory(env, url));
+      const emailAction = /^\/admin\/emails\/(automatic|manual)\/([a-f0-9]{64})\/(dismiss|restore)$/.exec(url.pathname);
+      if (emailAction && request.method === "POST")
+        return json(await dismissEmail(env, emailAction[1]!, emailAction[2]!, emailAction[3] === "dismiss"));
+      const emailRetry = /^\/admin\/emails\/(automatic|manual)\/([a-f0-9]{64})\/retry$/.exec(url.pathname);
+      if (emailRetry && request.method === "POST")
+        return json(await retryFailedEmail(env, emailRetry[1]!, emailRetry[2]!, request.headers.get("Idempotency-Key") ?? ""));
       if (url.pathname === "/admin/runs" && request.method === "GET")
         return json(await runHistory(env, url));
       if (url.pathname === "/admin/test-email" && request.method === "GET")
