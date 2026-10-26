@@ -72,7 +72,8 @@ Open **http://localhost:8787** (or the URL Wrangler prints). On your first visit
 
 - **Overview:** monitor health, notice counts, queue status, recent publications, and checks.
 - **Notice archive:** search by title or notice ID, filter new/updated/imported notices, and browse pages of 20.
-- **Email activity:** inspect pending, accepted, failed, and uncertain emails, including retry times and errors. Cancelled alerts are hidden by default; choose **Cancelled** or **All statuses** to view their retained history. Accepted means accepted by Resend, not confirmed inbox delivery.
+- **Email activity:** opens on **Queue**, which contains only pending emails. Accepted and completed attempts remain in **History**. **Needs attention** contains unresolved failed/uncertain attempts. Dismiss reviewed issues and restore them from History without deleting records or sending mail. A later acceptance resolves only earlier attempts for the same notice and recipient. Accepted means accepted by Resend, not confirmed inbox delivery.
+- **Retry** on an unresolved failed attempt: creates a separate audited send using the original recipient/content and current sender/API key. The previous attempt remains immutable in History. Pending copies, superseded attempts, and later accepted copies block duplicate retries. Uncertain outcomes require provider review. A temporary failure remains queued with the existing backoff rules.
 - **Check history:** browse the most recent 1,000 checks.
 - **Configuration:** edit recipients, sender, Resend key, email sending, automatic monitoring, minimum check interval, and per-cycle limits. Update your password here as well.
 - **Account details:** the sidebar shows the signed-in admin's name, initials, and email from the authenticated session.
@@ -259,6 +260,9 @@ Tracking and configuration routes require `Authorization: Bearer <ADMIN_TOKEN>` 
 | POST | `/admin/run` | Baseline/monitor cycle plus enabled email sends |
 | POST | `/admin/check` | Scan and queue changes without sending emails |
 | POST | `/admin/send` | Retry eligible pending email without scanning |
+| POST | `/admin/emails/:source/:id/dismiss` | Dismiss a failed/uncertain attempt without deleting history or sending |
+| POST | `/admin/emails/:source/:id/restore` | Restore a dismissed review marker without sending |
+| POST | `/admin/emails/:source/:id/retry` | Retry one failed attempt using a UUID `Idempotency-Key`, current sender, and original recipient |
 | GET | `/admin/notices/:id/email` | Review selected notice, saved recipients, sender, and delivery history without sending |
 | POST | `/admin/notices/:id/email` | Manually share the selected notice; requires a UUID `Idempotency-Key`, matching review revision/fingerprint, and acknowledgment for accepted/uncertain copies |
 
@@ -288,7 +292,7 @@ npm test
 npm run build
 ```
 
-Apply `0005_manual_email.sql` before running this version against an existing database; it adds manual delivery audit tables and a shared read view without rewriting notice history or automatic delivery records.
+Apply all pending migrations before running this version against an existing database. Migrations 0005–0007 add manual delivery auditing, reversible dismissal markers, retry links, and activity views without rewriting notice history or automatic delivery records.
 
 Tests use local D1 and mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
 

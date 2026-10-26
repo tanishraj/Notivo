@@ -4,6 +4,8 @@ import portalMigration from "../migrations/0002_portal_indexes.sql?raw";
 import authMigration from "../migrations/0003_auth_and_settings.sql?raw";
 import identityMigration from "../migrations/0004_notice_identity.sql?raw";
 import manualEmailMigration from "../migrations/0005_manual_email.sql?raw";
+import emailActivityMigration from "../migrations/0006_email_activity.sql?raw";
+import emailRetriesMigration from "../migrations/0007_email_retries.sql?raw";
 import type { Env, Fetcher } from "../src/types";
 
 export async function migrate() {
@@ -40,6 +42,14 @@ export async function migrate() {
       name: "0005_manual_email.sql",
       queries: manualEmailMigration.split(";").map((s) => s.trim()).filter(Boolean),
     },
+    {
+      name: "0006_email_activity.sql",
+      queries: emailActivityMigration.split(";").map((s) => s.trim()).filter(Boolean),
+    },
+    {
+      name: "0007_email_retries.sql",
+      queries: emailRetriesMigration.split(";").map((s) => s.trim()).filter(Boolean),
+    },
   ]);
 }
 
@@ -53,6 +63,8 @@ export async function reset() {
     env.DB.prepare(
       "UPDATE app_settings SET config_json = '{}', resend_cipher = NULL, revision = 0, updated_at = NULL WHERE id = 1",
     ),
+    env.DB.prepare("DELETE FROM email_retries"),
+    env.DB.prepare("DELETE FROM email_dismissals"),
     env.DB.prepare("DELETE FROM manual_deliveries"),
     env.DB.prepare("DELETE FROM manual_email_requests"),
     env.DB.prepare("DELETE FROM outbox"),

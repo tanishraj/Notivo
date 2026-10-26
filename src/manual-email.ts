@@ -100,3 +100,62 @@ export async function sendNoticeManually(
     await releaseLease(env.DB, owner);
   }
 }
+
+/** Explicit retries create a fresh audited attempt with the current sender and
+ * original recipient. They never overwrite a failed attempt's frozen payload. */
+export async function retryFailedEmail(
+  env: Env, source: string, deliveryId: string, requestId: string,
+  fetcher: Fetcher = fetch, now = new Date(),
+) {
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestId))
+    throw new InputError("Provide a UUID Idempotency-Key for this retry");
+  const owner = crypto.randomUUID();
+  if (!(await acquireLease(env.DB, owner, now)))
+    throw new InputError("Another cycle is running. Refresh before retrying.", 409);
+  try {
+    const configured = await effectiveEnv(env);
+    if (configured.EMAIL_ENABLED !== "true" || !configured.RESEND_API_KEY)
+      throw new InputError("Enable email sending and configure Resend before retrying");
+    if (!configured.EMAIL_FROM?.trim() || /[\r\n]/.test(configured.EMAIL_FROM))
+      throw new InputError("Configure a verified sender before retrying");
+    const previous = await env.DB.prepare("SELECT delivery_source, delivery_id FROM email_retries WHERE request_id = ?")
+      .bind(requestId).first<{ delivery_source: string; delivery_id: string }>();
+    if (previous && (previous.delivery_source !== source || previous.delivery_id !== deliveryId))
+      throw new InputError("This retry key belongs to another attempt", 409);
+    let queued = 0;
+    if (!previous) {
+      const original = await env.DB.prepare("SELECT * FROM email_activity_current WHERE delivery_source = ? AND delivery_id = ?")
+        .bind(source, deliveryId).first<Version & { recipient: string; status: string; resolved: number; retried: number; retry_pending: number; last_error: string | null }>();
+      if (!original) throw new InputError("Email attempt not found", 404);
+      if (original.status !== "failed") throw new InputError("Only confirmed failed attempts can be retried. Review uncertain outcomes in Resend first.");
+      if (original.last_error?.includes("HTTP 409")) throw new InputError("Review this idempotency conflict in Resend before sending another copy.");
+      if (original.resolved) throw new InputError("A later email was already accepted for this notice and recipient", 409);
+      if (original.retried) throw new InputError("This attempt already has a retry. Review the latest attempt in Email activity.", 409);
+      if (original.retry_pending) throw new InputError("An email for this notice and recipient is already pending", 409);
+      if (await env.DB.prepare("SELECT 1 FROM manual_email_requests WHERE id = ?").bind(requestId).first())
+        throw new InputError("This request key was already used for another manual action", 409);
+      const review = await settingsView(env);
+      const stamp = now.toISOString();
+      const id = await sha256(`manual/${requestId}/${original.recipient}`);
+      const fingerprint = await sha256(JSON.stringify([original.title, original.published_on, original.document_url]));
+      const payload = renderEmail(original, original.recipient, configured.EMAIL_FROM!, { manual: true });
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO manual_email_requests (id, notice_id, settings_revision, fingerprint, created_at) VALUES (?, ?, ?, ?, ?)")
+          .bind(requestId, original.notice_id, review.revision, fingerprint, stamp),
+        env.DB.prepare("INSERT INTO email_retries (request_id, delivery_source, delivery_id) VALUES (?, ?, ?)")
+          .bind(requestId, source, deliveryId),
+        env.DB.prepare(`INSERT INTO manual_deliveries (id, request_id, notice_id, title, published_on, document_url, recipient, payload_json, created_at, next_attempt_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+          .bind(id, requestId, original.notice_id, original.title, original.published_on, original.document_url,
+            original.recipient, JSON.stringify(payload), stamp, stamp),
+      ]);
+      queued = 1;
+    }
+    const emails = await sendPending(configured, fetcher, now, requestId);
+    const attempt = await env.DB.prepare("SELECT status FROM manual_deliveries WHERE request_id = ?")
+      .bind(requestId).first<{ status: string }>();
+    return { requestId, queued, emails, deliveryStatus: attempt?.status };
+  } finally {
+    await releaseLease(env.DB, owner);
+  }
+}
