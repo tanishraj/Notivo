@@ -7,6 +7,7 @@
   "compatibility_date": "2026-10-24",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
+  "keep_vars": true,
   "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "EMAIL_ENABLED": "false",
@@ -28,7 +29,6 @@
       "name": "notivo",
       "account_id": "97ac2e243aea8618cadae1d3a73202bb",
       "workers_dev": true,
-      "keep_vars": true,
       "vars": {
         "EMAIL_ENABLED": "false",
         "RECENT_PAGES": "3",
