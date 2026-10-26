@@ -109,6 +109,14 @@ export async function runScheduledCycle(
     state.consecutive_failures === 0 &&
     now.getTime() - Date.parse(state.last_success_at) < interval * 60_000
   ) {
+    // Delivery has its own clock: a recent scan must not hold up queued mail.
+    const due = configured.EMAIL_ENABLED === "true"
+      ? await env.DB.prepare(
+          `SELECT 1 AS found FROM email_deliveries
+           WHERE status = 'pending' AND kind = 'new' AND next_attempt_at <= ? LIMIT 1`,
+        ).bind(now.toISOString()).first()
+      : null;
+    if (due) return cycle(configured, fetcher, now, true, false);
     return {
       skipped: true as const,
       reason: "Next configured check is not due yet",

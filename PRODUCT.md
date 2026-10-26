@@ -12,11 +12,11 @@ Monitor every entry on the National Medical Commission's What's New page. Import
 
 ## Operating Context
 
-An existing Cloudflare Worker checks NMC every 15 minutes after deployment. D1 holds notice metadata and email history. Resend sends emails. Local development uses Wrangler and local D1.
+A Cloudflare Worker wakes every minute after deployment. NMC scans follow the dashboard minimum interval (15 minutes by default); due queued email is processed independently on scheduler wakes. D1 holds notice metadata and email history. Resend sends emails. Local development uses Wrangler and local D1.
 
 ## Capabilities and Constraints
 
-The portal reads the existing archive, email queue, and run history. Administrators can edit recipients, sender, encrypted Resend key, sending/monitoring toggles, minimum check interval, and per-cycle limits. D1 settings override environment defaults for subsequent runs. A manual portal check scans and queues notices without sending mail. Documents stay on NMC's website. Accepted means Resend accepted the email, not verified inbox delivery. Baseline imports do not trigger emails. Grouped email sending is not implemented.
+The portal reads the existing archive, email queue, and run history. Administrators can edit recipients, sender, encrypted Resend key, sending/monitoring toggles, minimum check interval, and per-cycle limits. D1 settings override environment defaults for subsequent runs. A manual portal check scans and queues notices without sending mail. Email activity offers a bounded manual send of due pending alerts. The archive can share a selected notice after reviewing its sender, recipients, and existing delivery outcomes. Manual shares retain separate immutable snapshots and audit records, without creating notice versions or changing baseline classification. Pending copies are not duplicated; accepted or uncertain deliveries require explicit acknowledgment. Configuration offers a single-recipient test email using saved settings; failed or ambiguous test outcomes require provider review before another attempt. Documents stay on NMC's website. Accepted means Resend accepted the email, not verified inbox delivery. Baseline imports do not trigger emails. Grouped email sending is not implemented.
 
 ## Brand Commitments
 

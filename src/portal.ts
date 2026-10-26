@@ -59,7 +59,7 @@ export async function emailHistory(env: Env, url: URL) {
     ].includes(status)
   )
     throw new QueryError("Unknown email status");
-  const where = `WHERE (v.title LIKE ? ESCAPE '\\' OR o.recipient LIKE ? ESCAPE '\\')${status === "all" ? "" : status === "non_cancelled" ? " AND o.status <> 'cancelled'" : " AND o.status = ?"}`;
+  const where = `WHERE (title LIKE ? ESCAPE '\\' OR recipient LIKE ? ESCAPE '\\')${status === "all" ? "" : status === "non_cancelled" ? " AND status <> 'cancelled'" : " AND status = ?"}`;
   const args = [
     searchValue(query),
     searchValue(query),
@@ -67,15 +67,15 @@ export async function emailHistory(env: Env, url: URL) {
   ];
   const [total, rows] = await Promise.all([
     env.DB.prepare(
-      `SELECT COUNT(*) AS count FROM outbox o JOIN notice_versions v ON v.id = o.version_id ${where}`,
+      `SELECT COUNT(*) AS count FROM email_deliveries ${where}`,
     )
       .bind(...args)
       .first<{ count: number }>(),
     env.DB.prepare(
-      `SELECT o.id, o.recipient, o.status, o.created_at, o.attempts, o.next_attempt_at,
-      o.accepted_at, o.last_error, o.resend_id, v.notice_id, v.title, v.kind, v.document_url
-      FROM outbox o JOIN notice_versions v ON v.id = o.version_id ${where}
-      ORDER BY o.created_at DESC, o.id DESC LIMIT ? OFFSET ?`,
+      `SELECT delivery_id AS id, recipient, status, created_at, attempts, next_attempt_at,
+      accepted_at, last_error, resend_id, notice_id, title, kind, document_url, delivery_source
+      FROM email_deliveries ${where}
+      ORDER BY created_at DESC, delivery_id DESC LIMIT ? OFFSET ?`,
     )
       .bind(...args, pageSize, offset)
       .all(),

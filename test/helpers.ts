@@ -3,6 +3,7 @@ import migration from "../migrations/0001_initial.sql?raw";
 import portalMigration from "../migrations/0002_portal_indexes.sql?raw";
 import authMigration from "../migrations/0003_auth_and_settings.sql?raw";
 import identityMigration from "../migrations/0004_notice_identity.sql?raw";
+import manualEmailMigration from "../migrations/0005_manual_email.sql?raw";
 import type { Env, Fetcher } from "../src/types";
 
 export async function migrate() {
@@ -35,6 +36,10 @@ export async function migrate() {
         .map((s) => s.trim())
         .filter(Boolean),
     },
+    {
+      name: "0005_manual_email.sql",
+      queries: manualEmailMigration.split(";").map((s) => s.trim()).filter(Boolean),
+    },
   ]);
 }
 
@@ -48,6 +53,8 @@ export async function reset() {
     env.DB.prepare(
       "UPDATE app_settings SET config_json = '{}', resend_cipher = NULL, revision = 0, updated_at = NULL WHERE id = 1",
     ),
+    env.DB.prepare("DELETE FROM manual_deliveries"),
+    env.DB.prepare("DELETE FROM manual_email_requests"),
     env.DB.prepare("DELETE FROM outbox"),
     env.DB.prepare("DELETE FROM notice_versions"),
     env.DB.prepare("DELETE FROM notices"),

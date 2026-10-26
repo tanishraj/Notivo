@@ -1,4 +1,4 @@
-import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import worker from '../src/index';
 import { runCycle } from '../src/monitor';
 import { listing, migrate, now, reset, settings, site } from './helpers';
@@ -11,6 +11,7 @@ describe('administration endpoints', () => {
     expect((await worker.fetch(new Request('https://monitor.example/admin/status'), settings())).status).toBe(401);
     expect((await worker.fetch(new Request('https://monitor.example/admin/run', { method: 'POST' }), settings())).status).toBe(401);
     expect((await worker.fetch(new Request('https://monitor.example/admin/test-email', { method: 'POST' }), settings())).status).toBe(401);
+    expect((await worker.fetch(new Request('https://monitor.example/admin/send', { method: 'POST' }), settings())).status).toBe(401);
     expect((await worker.fetch(new Request('https://monitor.example/admin/status'), settings({ ADMIN_TOKEN: '' }))).status).toBe(401);
   });
 
@@ -47,5 +48,34 @@ describe('administration endpoints', () => {
     const blocked = await worker.fetch(new Request('https://monitor.example/admin/test-email', { method: 'POST', headers }), config);
     expect(blocked.status).toBe(400);
     expect(await blocked.json()).toMatchObject({ error: expect.stringContaining('EMAIL_ENABLED') });
+  });
+
+  it('manually sends a bounded pending cycle without scanning, bypassing the scan interval but preserving origin protection', async () => {
+    const config = settings({ EMAIL_TO: 'first@example.com, second@example.com', EMAILS_PER_RUN: '1' });
+    await runCycle(config, site(listing(['1'])), now, false, true);
+    await runCycle(config, site(listing(['1', '2'])), now, false, true);
+    const enabled = { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
+    const fetcher = vi.fn(async (url: RequestInfo | URL) => {
+      expect(String(url)).toBe('https://api.resend.com/emails');
+      return Response.json({ id: 'manual-send-id' });
+    });
+    vi.stubGlobal('fetch', fetcher);
+    const headers = { Authorization: `Bearer ${config.ADMIN_TOKEN}` };
+    try {
+      const blocked = await worker.fetch(new Request('https://monitor.example/admin/send', {
+        method: 'POST', headers: { ...headers, Origin: 'https://other.example' },
+      }), enabled);
+      expect(blocked.status).toBe(403);
+      expect(fetcher).not.toHaveBeenCalled();
+      const response = await worker.fetch(new Request('https://monitor.example/admin/send', {
+        method: 'POST', headers,
+      }), enabled);
+      expect(response.status).toBe(200);
+      expect(await response.json()).toMatchObject({ emails: { accepted: 1 } });
+      expect(fetcher).toHaveBeenCalledTimes(1);
+      expect((await config.DB.prepare("SELECT COUNT(*) AS count FROM outbox WHERE status = 'pending'").first())?.count).toBe(1);
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });

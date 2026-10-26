@@ -21,6 +21,7 @@ import {
 } from "@/components/ui/select";
 import { api, ApiError } from "../api";
 import { RecipientsInput } from "./recipients-input";
+import { SendTestEmail } from "./email-actions";
 import { mergeRecipients, splitRecipients } from "../lib/recipients";
 import type { UserProfile } from "../types";
 
@@ -346,6 +347,21 @@ export function Settings({
                   notices.
                 </p>
               ) : null}
+              <SendTestEmail
+                key={saved.revision}
+                sender={saved.values.EMAIL_FROM}
+                recipient={saved.values.EMAIL_TO}
+                disabledReason={dirty || saving
+                  ? "Save your settings before sending a test email."
+                  : saved.values.EMAIL_ENABLED !== "true"
+                    ? "Enable email sending and save settings before sending a test."
+                    : !saved.resendConfigured
+                      ? "Configure a Resend API key before sending a test."
+                      : splitRecipients(saved.values.EMAIL_TO).length !== 1
+                        ? "A test sends to exactly one recipient. Save a single recipient to use this action."
+                        : ""}
+                onExpired={onExpired}
+              />
             </fieldset>
           </section>
           <section className="panel">
@@ -406,8 +422,8 @@ export function Settings({
                   </SelectContent>
                 </Select>
                 <p id="interval-help">
-                  Cloudflare evaluates this interval on its 15-minute schedule.
-                  Automatic checks run after deployment.
+                  NMC scans follow this interval. Cloudflare wakes every minute
+                  to send due queued emails independently of scans.
                 </p>
               </div>
               <details className="advanced-settings">

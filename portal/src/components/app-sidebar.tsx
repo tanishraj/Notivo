@@ -117,14 +117,6 @@ export function AppSidebar({
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="sidebar-note">
-          <span className="source-dot" aria-hidden="true" />
-          <span>
-            Original documents.
-            <br />
-            Straight from the source.
-          </span>
-        </div>
         <SidebarMenu>
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={page === "settings"}>

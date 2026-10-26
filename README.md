@@ -10,7 +10,7 @@ The current implementation is a TypeScript Cloudflare Worker with Cloudflare D1 
 
 ## What is included
 
-- Checks every 15 minutes through a Cloudflare Cron Trigger.
+- Cloudflare wakes every minute; NMC scans follow the configured minimum interval (15 minutes by default), while due emails can send on every wake.
 - Resumable baseline of the complete archive, without sending historical notices.
 - Checks the newest three pages on subsequent runs.
 - A rolling scan of older pages to find backdated additions and changes.
@@ -79,12 +79,15 @@ Open **http://localhost:8787** (or the URL Wrangler prints). On your first visit
 - **Recipient badges:** add addresses with Enter, comma, or Tab, paste an address list, and remove individual badges. Suggestions include your account and saved recipients. Addresses are validated, deduplicated, and limited to 20; Save also includes a valid address still being typed.
 - **Check for notices:** scan NMC and queue changes without sending email during this action. Scheduled deployed cycles send eligible mail when enabled.
 - **Email preview:** view the latest stored notice in the selected template without sending anything.
+- **Email notice** (Notice archive): review a selected notice, sender, recipients, and existing delivery states before sending. Imported notices can be shared without changing their archive identity. Pending copies are preserved; accepted or uncertain copies require explicit acknowledgment. Each manual share has its own immutable snapshot and appears in Email activity.
+- **Send pending emails** (Email activity): run one send cycle immediately, using the saved email limit and retry times. It does not scan NMC or retry failed/uncertain deliveries.
+- **Send test email** (Configuration): send one clearly labelled `[TEST]` email to the single saved recipient. Save any changes first; email sending and a Resend key must be enabled. The action does not drain the queue. If the outcome is unknown, inspect Resend before reloading to send another test.
 
 Better Auth manages password hashing and eight-hour database sessions. Cookies are HttpOnly, SameSite=Strict, and Secure on HTTPS; session refresh is disabled so eight hours is the maximum lifetime. Sign out revokes the session on the server. Credentials are not stored in localStorage or sessionStorage. Browser mutations require a matching Origin. Sign-in attempts are rate-limited with D1 counters. Serve deployed portals over HTTPS.
 
 Settings are saved in D1 and override their environment defaults after the first save. They apply to subsequent scans/sends and do not require redeployment. Saving settings does not send email. Enabling sending allows future cycles to drain queued messages; existing queued messages retain their original recipients and immutable retry payloads. Pausing automatic monitoring pauses both scheduled checks and sends, while manual checks remain available.
 
-The scheduler still wakes every 15 minutes and evaluates the configured minimum interval (15 minutes through 24 hours). Local development does not automatically execute this schedule. The Resend key field is write-only: blank keeps the current key; the remove checkbox explicitly removes it, including an inherited environment key. Preserve `SETTINGS_ENCRYPTION_KEY` when restarting or redeploying. If it is lost, restore it or save a replacement Resend key with a new encryption key.
+The scheduler wakes every minute. NMC scans follow the configured minimum interval (15 minutes through 24 hours), measured from the last successful scan. On other wakes, due pending emails are sent without scanning. A manual scan can postpone the next automatic scan, but cannot postpone queued email processing. The per-cycle email limit still applies; additional recipients are processed on subsequent wakes, and retry backoff is respected. No due mail means no send cycle is recorded. Local development does not automatically execute this schedule. The Resend key field is write-only: blank keeps the current key; the remove checkbox explicitly removes it, including an inherited environment key. Preserve `SETTINGS_ENCRYPTION_KEY` when restarting or redeploying. If it is lost, restore it or save a replacement Resend key with a new encryption key.
 
 If you lose the password, the installation owner can run `npm run admin -- reset-login` with `ADMIN_TOKEN`. This explicitly deletes the admin account and revokes all its sessions; notices, settings, and email history remain. Then create a new account through the portal. Password recovery by email and multiple admin accounts are not included.
 
@@ -143,7 +146,7 @@ The first run starts baseline mode automatically. A run imports at most three pa
 
 No historical notifications are created. After completion, the next run starts monitoring and requires a valid `EMAIL_TO` setting. The baseline command stops immediately if the baseline is already complete.
 
-Automatic cron initialization also works, but importing the archive at 15-minute intervals takes several hours. Run the baseline command for a faster initial setup. If interrupted, run it again to resume.
+Automatic cron initialization also works, but importing the archive at the default 15-minute scan interval takes several hours. Run the baseline command for a faster initial setup. If interrupted, run it again to resume.
 
 After baseline, every run reads the latest three pages. When an archive audit is due, it also reads up to two older pages, saving a cursor between runs. At 51 pages, that audit takes about six hours while recent pages continue to be checked. Another audit becomes due 24 hours after completion. Backdated notices can therefore have a longer detection delay than notices on recent pages.
 
@@ -203,7 +206,7 @@ Use the named `production` environment for the hosted application. The base conf
 
 6. Open the deployed portal and create the production admin account using the setup token (`ADMIN_TOKEN`) from `.dev.vars.production`. The local account and local email history are not copied to production. Review Configuration and the email preview. Enable email sending and save when ready. Pending notifications accumulated after baseline will then be sent by subsequent cycles. Dashboard values override environment defaults, including the committed `EMAIL_ENABLED=false`.
 
-Cron runs every 15 minutes. The schedule is defined in UTC, although `*/15 * * * *` has the same interval in every timezone. Store dates and timestamps in UTC.
+Cron runs every minute (`* * * * *`), independent of the dashboard scan interval. The schedule is defined in UTC. Store dates and timestamps in UTC.
 
 ## Configuration
 
@@ -254,6 +257,8 @@ Tracking and configuration routes require `Authorization: Bearer <ADMIN_TOKEN>` 
 | POST | `/admin/run` | Baseline/monitor cycle plus enabled email sends |
 | POST | `/admin/check` | Scan and queue changes without sending emails |
 | POST | `/admin/send` | Retry eligible pending email without scanning |
+| GET | `/admin/notices/:id/email` | Review selected notice, saved recipients, sender, and delivery history without sending |
+| POST | `/admin/notices/:id/email` | Manually share the selected notice; requires a UUID `Idempotency-Key`, matching review revision/fingerprint, and acknowledgment for accepted/uncertain copies |
 
 An overlapping mutation returns 409. A scan or sender configuration failure returns 502 and is recorded in the logs. Failed parsing never advances the scan cursor or commits a partial scan. The latest 1,000 run summaries are retained.
 
@@ -261,7 +266,7 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 
 - Notice changes and outbox records are committed together in a D1 batch transaction.
 - Each recipient gets a separate message. Retries use an immutable payload and a deterministic idempotency key.
-- Temporary failures remain pending with exponential backoff, up to one hour between attempts. The configured scheduled-cycle interval determines when a due retry is actually attempted.
+- Temporary failures remain pending with exponential backoff, up to one hour between attempts. Each one-minute scheduler wake can attempt a due retry independently of the NMC scan interval.
 - Resend keeps idempotency keys for 24 hours. Automatic retries stop after 23 hours from the first attempt and mark the record `uncertain`. Inspect the Resend dashboard before manually resending; this prevents automatic duplicates after key expiry.
 - Permanent provider failures become `failed`. Inspect `/admin/status` and Worker logs, fix configuration, and reconcile the record with Resend before manually changing its state. There is deliberately no blind “resend everything” endpoint.
 - `accepted` means Resend accepted the request. Inbox delivery and bounce tracking would require Resend webhooks, which are not included yet.
@@ -280,6 +285,8 @@ npm run typecheck
 npm test
 npm run build
 ```
+
+Apply `0005_manual_email.sql` before running this version against an existing database; it adds manual delivery audit tables and a shared read view without rewriting notice history or automatic delivery records.
 
 Tests use local D1 and mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
 

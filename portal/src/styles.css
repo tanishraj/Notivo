@@ -228,19 +228,6 @@ svg {
   gap: 14px;
   padding: 18px;
 }
-.sidebar-note {
-  display: flex;
-  gap: 10px;
-  padding: 15px 12px;
-  background: #f4f8f6;
-  color: #476153;
-  font-size: 11px;
-  line-height: 1.7;
-  border-radius: 9px;
-}
-.sidebar-note .source-dot {
-  margin-top: 6px;
-}
 .workspace-owner {
   display: flex;
   gap: 10px;
@@ -2021,6 +2008,143 @@ td:first-child {
   align-items: center;
   flex-wrap: wrap;
   gap: 16px;
+}
+.notice-row.notice-row-with-email {
+  grid-template-columns: 34px minmax(0, 1fr) 95px auto;
+}
+.notice-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.notice-row-actions button {
+  font-size: 11px;
+}
+.archive-email-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 61;
+  width: min(600px, calc(100vw - 32px));
+  max-height: calc(100dvh - 40px);
+  overflow-y: auto;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 18px 70px rgb(11 29 56 / 20%);
+}
+.archive-email-body {
+  padding: 24px;
+  font-size: 12px;
+}
+.manual-notice-id {
+  color: #5b6a7e;
+  margin-bottom: 8px;
+}
+.archive-email-body h3 {
+  font-size: 16px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.manual-email-details {
+  display: grid;
+  gap: 14px;
+  margin: 24px 0;
+}
+.manual-email-details > div {
+  display: grid;
+  grid-template-columns: 85px minmax(0, 1fr);
+  gap: 10px;
+}
+.manual-email-details dt {
+  color: #5b6a7e;
+}
+.manual-email-details dd {
+  overflow-wrap: anywhere;
+}
+.manual-email-warning {
+  margin-top: 20px;
+  padding: 16px;
+  border: 1px solid #e5decb;
+  border-radius: 8px;
+  background: #fffdf6;
+  color: #79571a;
+  line-height: 1.7;
+}
+.manual-email-warning .checkbox-label {
+  margin-top: 12px;
+  align-items: flex-start;
+}
+.archive-email-body > .info-note,
+.archive-email-body > .error-notice,
+.archive-email-body > .success-notice {
+  margin: 18px 0 0;
+}
+.archive-email-footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 18px 24px;
+  border-top: 1px solid #e7edf4;
+}
+@media (max-width: 767px) {
+  .notice-row.notice-row-with-email {
+    grid-template-columns: 27px minmax(0, 1fr);
+  }
+  .notice-row-with-email .notice-row-actions {
+    grid-column: 2;
+    grid-row: auto;
+  }
+}
+.email-log-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.email-log-heading {
+  min-width: 0;
+}
+.email-log-heading p,
+.test-email-action > p {
+  margin: 7px 0 0;
+  color: #5b6a7e;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-wrap: anywhere;
+}
+.email-log-controls > button {
+  flex-shrink: 0;
+}
+.email-action-feedback {
+  padding: 16px 22px 0;
+}
+@media (max-width: 767px) {
+  .email-log-controls {
+    width: 100%;
+  }
+  .email-log-controls > button,
+  .email-log-controls > .select-label {
+    flex: 1 1 170px;
+  }
+  .email-action-feedback {
+    padding: 16px 17px 0;
+  }
+}
+.test-email-action {
+  border-top: 1px solid #e7edf4;
+  padding-top: 22px;
+}
+.test-email-action h3 {
+  font-size: 13px;
+  font-weight: 600;
+}
+.test-email-action > button {
+  margin-top: 14px;
+}
+.test-email-action > [role] {
+  margin: 16px 0 0;
 }
 .settings-save-bar > span {
   font-size: 10px;

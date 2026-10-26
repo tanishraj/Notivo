@@ -1,0 +1,102 @@
+import { InputError } from "./auth";
+import { effectiveEnv, settingsView } from "./config";
+import { renderEmail, sendPending } from "./email";
+import { acquireLease, releaseLease } from "./store";
+import { recipients, sha256, type Env, type Fetcher, type Version } from "./types";
+
+interface StoredNotice {
+  id: string;
+  title: string;
+  published_on: string | null;
+  document_url: string | null;
+  fingerprint: string;
+}
+
+export async function manualEmailReview(env: Env, noticeId: string) {
+  const [notice, config] = await Promise.all([
+    env.DB.prepare("SELECT id, title, published_on, document_url, fingerprint FROM notices WHERE id = ?")
+      .bind(noticeId).first<StoredNotice>(),
+    settingsView(env),
+  ]);
+  if (!notice) throw new InputError("Notice not found", 404);
+  const to = recipients({ ...env, ...config.values });
+  const history = await env.DB.prepare(
+    `SELECT recipient, status, COUNT(*) AS count FROM email_deliveries
+     WHERE notice_id = ? AND recipient IN (SELECT value FROM json_each(?))
+     AND status IN ('pending', 'accepted', 'uncertain') GROUP BY recipient, status`,
+  ).bind(noticeId, JSON.stringify(to)).all<{ recipient: string; status: string; count: number }>();
+  return {
+    notice,
+    sender: config.values.EMAIL_FROM,
+    recipients: to,
+    settingsRevision: config.revision,
+    enabled: config.values.EMAIL_ENABLED === "true" && config.resendConfigured,
+    limit: Number(config.values.EMAILS_PER_RUN),
+    history: history.results,
+  };
+}
+
+export async function sendNoticeManually(
+  env: Env,
+  noticeId: string,
+  requestId: string,
+  body: Record<string, unknown>,
+  fetcher: Fetcher = fetch,
+  now = new Date(),
+) {
+  if (!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i.test(requestId))
+    throw new InputError("Provide a UUID Idempotency-Key for this manual send");
+  const owner = crypto.randomUUID();
+  if (!(await acquireLease(env.DB, owner, now)))
+    throw new InputError("Another cycle is running. Refresh before trying again.", 409);
+  try {
+    const configured = await effectiveEnv(env);
+    if (configured.EMAIL_ENABLED !== "true" || !configured.RESEND_API_KEY)
+      throw new InputError("Enable email sending and configure Resend before sending a notice");
+    const previous = await env.DB.prepare("SELECT notice_id FROM manual_email_requests WHERE id = ?")
+      .bind(requestId).first<{ notice_id: string }>();
+    if (previous && previous.notice_id !== noticeId)
+      throw new InputError("This request key belongs to a different notice", 409);
+    let queued = 0;
+    let existingPending = 0;
+    if (!previous) {
+      const review = await manualEmailReview(env, noticeId);
+      if (body.settingsRevision !== review.settingsRevision || body.fingerprint !== review.notice.fingerprint)
+        throw new InputError("The notice or settings changed. Close and reopen the review before sending.", 409);
+      const pending = new Set(review.history.filter((row) => row.status === "pending").map((row) => row.recipient));
+      const targets = review.recipients.filter((recipient) => !pending.has(recipient));
+      const risky = review.history.some((row) => targets.includes(row.recipient) && ["accepted", "uncertain"].includes(row.status));
+      if (risky && body.allowDuplicate !== true)
+        throw new InputError("This notice was already accepted or has an uncertain delivery. Review Resend and acknowledge the duplicate risk.", 409);
+      existingPending = pending.size;
+      const stamp = now.toISOString();
+      const version: Version = {
+        ...review.notice, notice_id: noticeId, kind: "new", detected_at: stamp,
+      };
+      const deliveries = await Promise.all(targets.map(async (recipient) => ({
+        id: await sha256(`manual/${requestId}/${recipient}`),
+        recipient,
+        payload: JSON.stringify(renderEmail(version, recipient, review.sender, { manual: true })),
+      })));
+      await env.DB.batch([
+        env.DB.prepare("INSERT INTO manual_email_requests (id, notice_id, settings_revision, fingerprint, created_at) VALUES (?, ?, ?, ?, ?)")
+          .bind(requestId, noticeId, review.settingsRevision, review.notice.fingerprint, stamp),
+        ...deliveries.map((delivery) => env.DB.prepare(
+          `INSERT INTO manual_deliveries
+           (id, request_id, notice_id, title, published_on, document_url, recipient, payload_json, created_at, next_attempt_at)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        ).bind(delivery.id, requestId, noticeId, review.notice.title, review.notice.published_on,
+          review.notice.document_url, delivery.recipient, delivery.payload, stamp, stamp)),
+      ]);
+      queued = deliveries.length;
+    }
+    const emails = await sendPending(configured, fetcher, now, requestId);
+    const remaining = await env.DB.prepare("SELECT COUNT(*) AS count FROM manual_deliveries WHERE request_id = ? AND status = 'pending'")
+      .bind(requestId).first<{ count: number }>();
+    await env.DB.prepare("INSERT INTO runs (started_at, completed_at, mode, pages, notices, notifications, error) VALUES (?, ?, 'manual_send', 0, 1, ?, NULL)")
+      .bind(now.toISOString(), new Date().toISOString(), queued).run();
+    return { requestId, queued, existingPending, remaining: remaining?.count ?? 0, emails };
+  } finally {
+    await releaseLease(env.DB, owner);
+  }
+}

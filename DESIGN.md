@@ -281,6 +281,12 @@ The shadcnblocks sidebar1 adaptation uses section labels, small line icons, and 
 
 The footer identifies the authenticated administrator from `status.currentUser`: a (30px) circular initials avatar, (11px) semibold name, and (10px) email below. Long names and emails truncate with ellipses and preserve their full values in title attributes. Keep the avatar fixed while the text column shrinks. If account details are unavailable, use the explicit “Account” / “Account details unavailable” fallback rather than a fabricated identity. Preserve the same account group in the mobile sheet.
 
+### Manual email actions
+
+Archive rows include a compact outline “Email notice” action beside the original-document link. On mobile it moves below the notice metadata. The review dialog shows the selected title, saved sender, recipients, and existing delivery states before a real send. Pending copies are preserved; an already accepted or uncertain copy requires an explicit checkbox acknowledgment. Busy controls disable and prevent dismissal; completion and failures appear inside the dialog. Manual sends do not change archive classification.
+
+Email activity places “Send pending emails” in the Email log toolbar immediately before the status filter, with the pending count and send-limit explanation under the panel title. Disable it when sending is off, no mail is pending, or a send is in progress. Report provider acceptance, failures, retries, and uncertain outcomes with text and semantic feedback. Configuration places the separate “Send test email” action below email settings, showing its saved recipient and sender. Unsaved settings, disabled sending, missing keys, or multiple recipients disable a test with a reason. Tests have their own busy/result states; ambiguous outcomes require provider review before another attempt.
+
 ### Notice rows and monitor state
 
 Notice rows prioritize provenance, a wrapping document title, date, and the original-document action. Preserve that hierarchy across compact and mobile forms. Health banners, run icons, and queue labels carry both state text and semantic tone. Loading uses a rotating indicator (1.2s linear); sidebar width transitions use (200ms linear). Reduced-motion preference disables animation and transitions.

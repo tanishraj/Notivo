@@ -27,9 +27,9 @@ function headline(version: Version): string {
   return version.title.replace(prefix, '').trim() || version.title;
 }
 
-export function renderNoticeHtml(version: Version, options: { test?: boolean } = {}): string {
+export function renderNoticeHtml(version: Version, options: { test?: boolean; manual?: boolean } = {}): string {
   const c = colors;
-  const label = version.kind === 'updated' ? 'Updated NMC notice' : 'New NMC notice';
+  const label = options.manual ? 'NMC notice shared with you' : version.kind === 'updated' ? 'Updated NMC notice' : 'New NMC notice';
   const title = escapeHtml(headline(version));
   const date = escapeHtml(readableDate(version.published_on));
   const url = escapeHtml(version.document_url ?? SOURCE_URL);
@@ -37,6 +37,8 @@ export function renderNoticeHtml(version: Version, options: { test?: boolean } =
   const reference = /^\d+$/.test(version.notice_id) ? `Notice ${escapeHtml(version.notice_id)} &nbsp;&middot;&nbsp; ` : '';
   const summary = !version.document_url
     ? 'This entry has no linked document. You can review it in the NMC notice listing.'
+    : options.manual
+      ? 'This notice from the National Medical Commission has been shared with you by your Notivo administrator.'
     : version.kind === 'updated'
       ? 'This notice from the National Medical Commission has been updated. Review the original notice for the latest information.'
       : 'A new notice from the National Medical Commission is available for your review.';

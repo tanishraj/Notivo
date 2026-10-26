@@ -7,7 +7,7 @@
   "compatibility_date": "2026-10-24",
   "compatibility_flags": ["nodejs_compat"],
   "observability": { "enabled": true },
-  "triggers": { "crons": ["*/15 * * * *"] },
+  "triggers": { "crons": ["* * * * *"] },
   "vars": {
     "EMAIL_ENABLED": "false",
     "RECENT_PAGES": "3",
@@ -35,7 +35,7 @@
         "AUDIT_PAGES_PER_RUN": "2",
         "EMAILS_PER_RUN": "5"
       },
-      "triggers": { "crons": ["*/15 * * * *"] },
+      "triggers": { "crons": ["* * * * *"] },
       "d1_databases": [
         {
           "binding": "DB",

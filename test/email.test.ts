@@ -1,7 +1,7 @@
 import { env } from 'cloudflare:test';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { renderEmail, sendPending, sendTestEmail, testEmailPayload } from '../src/email';
-import { runCycle } from '../src/monitor';
+import { runCycle, runScheduledCycle } from '../src/monitor';
 import { listing, migrate, now, reset, settings, site } from './helpers';
 import type { Env, Fetcher, MailPayload } from '../src/types';
 
@@ -16,6 +16,61 @@ async function queue(): Promise<Env> {
 }
 
 describe('Resend delivery', () => {
+  it('drains pending recipients on successive scheduler ticks without waiting for another scan', async () => {
+    const config = settings({ EMAIL_TO: 'admin@example.com, reader@example.com', EMAILS_PER_RUN: '1' });
+    await runCycle(config, site(listing(['1'])), now, false, true);
+    await runCycle(config, site(listing(['1', '2'])), now, false, true);
+    const enabled = { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
+    let calls = 0;
+    const fetcher: Fetcher = async (url) => {
+      expect(String(url)).toBe('https://api.resend.com/emails');
+      calls++;
+      return calls === 1
+        ? Response.json({ name: 'validation_error' }, { status: 403 })
+        : Response.json({ id: 'accepted-second-recipient' });
+    };
+    expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 60_000)))
+      .toMatchObject({ skipped: false, emails: { failed: 1, accepted: 0 } });
+    expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 120_000)))
+      .toMatchObject({ skipped: false, emails: { accepted: 1 } });
+    expect(calls).toBe(2);
+    expect((await env.DB.prepare('SELECT status FROM outbox ORDER BY status').all()).results)
+      .toEqual([{ status: 'accepted' }, { status: 'failed' }]);
+    expect((await env.DB.prepare('SELECT last_success_at FROM monitor_state').first())?.last_success_at)
+      .toBe(now.toISOString());
+    expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 180_000)))
+      .toMatchObject({ skipped: true });
+    expect(calls).toBe(2);
+  });
+
+  it('processes queued mail after a manual scan without bypassing pause, backoff, or the cycle lease', async () => {
+    const config = await queue();
+    const manualTime = new Date(now.getTime() + 600_000);
+    await runCycle(config, site(listing(['1', '2'])), manualTime, false, true);
+    let calls = 0;
+    const fetcher: Fetcher = async (url) => {
+      expect(String(url)).toBe('https://api.resend.com/emails');
+      calls++;
+      return Response.json({ id: 'accepted-after-manual-scan' });
+    };
+    const tick = new Date(manualTime.getTime() + 60_000);
+    expect(await runScheduledCycle({ ...config, MONITOR_ENABLED: 'false' }, fetcher, tick))
+      .toMatchObject({ skipped: true });
+    expect(await runScheduledCycle({ ...config, EMAIL_ENABLED: 'false' }, fetcher, tick))
+      .toMatchObject({ skipped: true });
+    await env.DB.prepare('UPDATE outbox SET next_attempt_at = ?').bind(new Date(tick.getTime() + 60_000).toISOString()).run();
+    expect(await runScheduledCycle(config, fetcher, tick)).toMatchObject({ skipped: true });
+    await env.DB.prepare("UPDATE monitor_state SET lease_owner = 'other', lease_until = ?")
+      .bind(new Date(tick.getTime() + 180_000).toISOString()).run();
+    expect(await runScheduledCycle(config, fetcher, new Date(tick.getTime() + 60_000)))
+      .toMatchObject({ skipped: true, reason: 'Another cycle holds the lease' });
+    expect(calls).toBe(0);
+    await env.DB.prepare('UPDATE monitor_state SET lease_owner = NULL, lease_until = NULL').run();
+    expect(await runScheduledCycle(config, fetcher, new Date(tick.getTime() + 60_000)))
+      .toMatchObject({ emails: { accepted: 1 } });
+    expect(calls).toBe(1);
+  });
+
   it('builds a test payload using configured addresses without altering pending alerts', async () => {
     const config = await queue();
     const mail = await testEmailPayload({ ...config, EMAIL_FROM: 'onboarding@resend.dev', EMAIL_TO: 'owner@example.com' });

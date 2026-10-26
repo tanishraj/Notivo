@@ -14,10 +14,10 @@ export function renderEmail(
   version: Version,
   recipient: string,
   sender: string,
-  options: { test?: boolean } = {},
+  options: { test?: boolean; manual?: boolean } = {},
 ): MailPayload {
   const label =
-    version.kind === "updated" ? "Updated NMC notice" : "New NMC notice";
+    options.manual ? "NMC notice shared with you" : version.kind === "updated" ? "Updated NMC notice" : "New NMC notice";
   const date = version.published_on ?? "Not provided";
   const documentUrl = version.document_url ?? SOURCE_URL;
   const linkLabel = version.document_url
@@ -50,12 +50,18 @@ interface Delivery extends Version {
   payload_json: string | null;
   first_attempt_at: string | null;
   attempts: number;
+  delivery_source: "automatic" | "manual";
+}
+
+function deliveryTable(row: Delivery) {
+  return row.delivery_source === "manual" ? "manual_deliveries" : "outbox";
 }
 
 export async function sendPending(
   env: Env,
   fetcher: Fetcher = fetch,
   now = new Date(),
+  manualRequestId?: string,
 ) {
   if (env.EMAIL_ENABLED !== "true")
     return { enabled: false, accepted: 0, failed: 0, retried: 0, uncertain: 0 };
@@ -70,11 +76,12 @@ export async function sendPending(
   }
   const limit = intSetting(env.EMAILS_PER_RUN, 5, 5);
   const rows = await env.DB.prepare(
-    `SELECT v.*, o.id AS delivery_id, o.recipient, o.payload_json, o.first_attempt_at, o.attempts
-    FROM outbox o JOIN notice_versions v ON v.id = o.version_id
-    WHERE o.status = 'pending' AND v.kind = 'new' AND o.next_attempt_at <= ? ORDER BY o.created_at, o.id LIMIT ?`,
+    `SELECT * FROM email_deliveries
+    WHERE status = 'pending' AND kind = 'new' AND next_attempt_at <= ?
+      ${manualRequestId ? "AND manual_request_id = ?" : ""}
+    ORDER BY created_at, delivery_id LIMIT ?`,
   )
-    .bind(now.toISOString(), limit)
+    .bind(now.toISOString(), ...(manualRequestId ? [manualRequestId] : []), limit)
     .all<Delivery>();
   const result = {
     enabled: true,
@@ -91,7 +98,7 @@ export async function sendPending(
       now.getTime() - Date.parse(row.first_attempt_at) >= 23 * 3_600_000
     ) {
       await env.DB.prepare(
-        "UPDATE outbox SET status = 'uncertain', last_error = ? WHERE id = ?",
+        `UPDATE ${deliveryTable(row)} SET status = 'uncertain', last_error = ? WHERE id = ?`,
       )
         .bind(
           "Retry window ended; reconcile with Resend before attempting another send",
@@ -108,7 +115,7 @@ export async function sendPending(
     attempted = true;
     // Persist the exact payload before sending so retries cannot change its content.
     await env.DB.prepare(
-      `UPDATE outbox SET payload_json = ?, first_attempt_at = COALESCE(first_attempt_at, ?), attempts = attempts + 1 WHERE id = ?`,
+      `UPDATE ${deliveryTable(row)} SET payload_json = ?, first_attempt_at = COALESCE(first_attempt_at, ?), attempts = attempts + 1 WHERE id = ?`,
     )
       .bind(JSON.stringify(payload), now.toISOString(), row.delivery_id)
       .run();
@@ -142,7 +149,7 @@ export async function sendPending(
       // Keep database failures outside the API catch. If this write fails, the
       // next invocation retries the same persisted payload and idempotency key.
       await env.DB.prepare(
-        "UPDATE outbox SET status = 'accepted', resend_id = ?, accepted_at = ?, last_error = NULL WHERE id = ?",
+        `UPDATE ${deliveryTable(row)} SET status = 'accepted', resend_id = ?, accepted_at = ?, last_error = NULL WHERE id = ?`,
       )
         .bind(body.id, now.toISOString(), row.delivery_id)
         .run();
@@ -166,7 +173,7 @@ export async function sendPending(
       if (response.status === 429) break;
     } else {
       await env.DB.prepare(
-        "UPDATE outbox SET status = 'failed', last_error = ? WHERE id = ?",
+        `UPDATE ${deliveryTable(row)} SET status = 'failed', last_error = ? WHERE id = ?`,
       )
         .bind(
           `Resend HTTP ${response.status}; check sender, recipient, and API configuration`,
@@ -182,7 +189,7 @@ export async function sendPending(
 async function retry(env: Env, row: Delivery, now: Date, message: string) {
   const delay = Math.min(3_600, 60 * 2 ** Math.min(row.attempts, 6));
   await env.DB.prepare(
-    "UPDATE outbox SET next_attempt_at = ?, last_error = ? WHERE id = ?",
+    `UPDATE ${deliveryTable(row)} SET next_attempt_at = ?, last_error = ? WHERE id = ?`,
   )
     .bind(
       new Date(now.getTime() + delay * 1_000).toISOString(),

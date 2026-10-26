@@ -63,6 +63,7 @@ export interface Email {
   resend_id: string | null;
   document_url: string | null;
   kind: "new" | "updated";
+  delivery_source: "automatic" | "manual";
 }
 export interface List<T> {
   items: T[];

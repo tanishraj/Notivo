@@ -40,6 +40,8 @@ import { AppSidebar, Brand } from "./components/app-sidebar";
 import { api, ApiError } from "./api";
 import { Login } from "./components/login";
 import { Settings } from "./components/settings";
+import { EmailActionResult, SendPendingEmails } from "./components/email-actions";
+import { ArchiveEmail } from "./components/archive-email";
 import type { Email, List, Notice, Page, Run, Status } from "./types";
 
 const titles: Record<Page, string> = {
@@ -252,14 +254,16 @@ function Pagination({
 function NoticeRows({
   items,
   compact = false,
+  onEmail,
 }: {
   items: Notice[];
   compact?: boolean;
+  onEmail?: (notice: Notice) => void;
 }) {
   return (
     <div className={compact ? "notice-list compact" : "notice-list"}>
       {items.map((notice) => (
-        <article className="notice-row" key={notice.id}>
+        <article className={`notice-row${onEmail ? " notice-row-with-email" : ""}`} key={notice.id}>
           <div className="notice-file">
             <FileText size={20} strokeWidth={1.6} />
           </div>
@@ -297,11 +301,12 @@ function NoticeRows({
               {date(notice.published_on)}
             </time>
           </div>
-          <OriginalLink
-            url={notice.document_url}
-            title={notice.title}
-            compact
-          />
+          {onEmail ? <div className="notice-row-actions">
+            <Button variant="outline" size="sm" onClick={() => onEmail(notice)} aria-label={`Email notice ${notice.id}`}>
+              <Mail size={15} /><span>Email notice</span>
+            </Button>
+            <OriginalLink url={notice.document_url} title={notice.title} compact />
+          </div> : <OriginalLink url={notice.document_url} title={notice.title} compact />}
         </article>
       ))}
     </div>
@@ -525,6 +530,8 @@ function Overview({
                       ? "Archive import"
                       : run.mode === "send"
                         ? "Email send cycle"
+                        : run.mode === "manual_send"
+                          ? "Manual notice email"
                         : "Notice check"}
                   </strong>
                   <p>
@@ -555,6 +562,7 @@ function NoticeArchive({
   onExpired: () => void;
   retry: () => void;
 }) {
+  const [emailNotice, setEmailNotice] = useState<Notice | null>(null);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
   const [kind, setKind] = useState("all");
@@ -565,6 +573,7 @@ function NoticeArchive({
     onExpired,
   );
   return (
+    <>
     <section className="panel archive-panel">
       <div className="list-toolbar">
         <form
@@ -630,7 +639,7 @@ function NoticeArchive({
           <ErrorNotice onRetry={retry}>{list.error}</ErrorNotice>
         ) : list.data ? (
           list.data.items.length ? (
-            <NoticeRows items={list.data.items} />
+            <NoticeRows items={list.data.items} onEmail={setEmailNotice} />
           ) : (
             <Empty icon={<Search />} title="No notices found">
               {search || kind !== "all"
@@ -646,6 +655,8 @@ function NoticeArchive({
         <Pagination data={list.data} onPage={setPage} loading={list.loading} />
       ) : null}
     </section>
+    {emailNotice ? <ArchiveEmail key={emailNotice.id} notice={emailNotice} onClose={() => setEmailNotice(null)} onComplete={retry} onExpired={onExpired} /> : null}
+    </>
   );
 }
 
@@ -653,13 +664,17 @@ function Emails({
   revision,
   onExpired,
   retry,
+  status,
 }: {
   revision: number;
   onExpired: () => void;
   retry: () => void;
+  status: Status;
 }) {
   const [filter, setFilter] = useState("non_cancelled");
   const [page, setPage] = useState(1);
+  const [sendResult, setSendResult] = useState({ text: "", error: false });
+  const pending = status.emails.find((item) => item.status === "pending")?.count ?? 0;
   const list = useList<Email>(
     `emails?status=${filter}&page=${page}`,
     revision,
@@ -678,7 +693,14 @@ function Emails({
       </div>
       <section className="panel">
         <div className="list-toolbar">
-          <h2>Email log</h2>
+          <div className="email-log-heading">
+            <h2>Email log</h2>
+            <p id="pending-email-help">{status.emailEnabled
+              ? `${pending} pending. Uses your saved send limit.`
+              : "Email sending is disabled. Enable it in Configuration."}</p>
+          </div>
+          <div className="email-log-controls">
+          <SendPendingEmails enabled={status.emailEnabled} pending={pending} onComplete={retry} onExpired={onExpired} onResult={setSendResult} />
           <div className="select-label">
             <Select
               value={filter}
@@ -703,7 +725,9 @@ function Emails({
               </SelectContent>
             </Select>
           </div>
+          </div>
         </div>
+        {sendResult.text ? <div className="email-action-feedback"><EmailActionResult {...sendResult} /></div> : null}
         {list.error ? (
           <ErrorNotice onRetry={retry}>{list.error}</ErrorNotice>
         ) : list.data ? (
@@ -733,7 +757,7 @@ function Emails({
                   </div>
                   <h3>{cleanTitle(email.title)}</h3>
                   <p className="email-recipient">
-                    To {email.recipient} · NMC {email.notice_id}
+                    To {email.recipient} · NMC {email.notice_id}{email.delivery_source === "manual" ? " · Manually sent" : ""}
                   </p>
                   <div className="email-details">
                     <span>
@@ -851,6 +875,8 @@ function Runs({
                         ? "Archive import"
                         : run.mode === "send"
                           ? "Email send"
+                          : run.mode === "manual_send"
+                            ? "Manual notice email"
                           : "Notice check"}
                     </td>
                     <td>{run.pages}</td>
@@ -1157,6 +1183,7 @@ export function App() {
               />
             ) : page === "emails" ? (
               <Emails
+                status={status}
                 revision={revision}
                 onExpired={expiredEvent}
                 retry={refresh}

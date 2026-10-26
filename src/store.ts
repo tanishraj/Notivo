@@ -225,12 +225,12 @@ export async function status(env: Env) {
     getState(env.DB),
     env.DB.prepare("SELECT COUNT(*) AS notices FROM notices").first(),
     env.DB.prepare(
-      "SELECT status, COUNT(*) AS count FROM outbox GROUP BY status",
+      "SELECT status, COUNT(*) AS count FROM email_deliveries GROUP BY status",
     ).all(),
     env.DB.prepare("SELECT * FROM runs ORDER BY id DESC LIMIT 10").all(),
     env.DB.prepare(
-      `SELECT id, recipient, status, attempts, next_attempt_at, last_error
-      FROM outbox WHERE status IN ('failed', 'uncertain') ORDER BY created_at DESC LIMIT 20`,
+      `SELECT delivery_id AS id, recipient, status, attempts, next_attempt_at, last_error
+      FROM email_deliveries WHERE status IN ('failed', 'uncertain') ORDER BY created_at DESC LIMIT 20`,
     ).all(),
   ]);
   return {

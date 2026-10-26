@@ -8,8 +8,9 @@ import { runCycle, runScheduledCycle } from "./monitor";
 import { getState, status } from "./store";
 import { errorMessage, sha256, type Env } from "./types";
 import { emailHistory, noticeHistory, QueryError, runHistory } from "./portal";
-import { authInfo, bootstrapAdmin, createAuth, InputError } from "./auth";
+import { authInfo, bootstrapAdmin, createAuth, InputError, readJson } from "./auth";
 import { effectiveEnv, saveSettings, settingsView } from "./config";
+import { manualEmailReview, sendNoticeManually } from "./manual-email";
 
 const headers = {
   "Cache-Control": "no-store",
@@ -177,6 +178,13 @@ export default {
         });
       if (url.pathname === "/admin/notices" && request.method === "GET")
         return json(await noticeHistory(env, url));
+      const manualNotice = /^\/admin\/notices\/([^/]+)\/email$/.exec(url.pathname);
+      if (manualNotice && ["GET", "POST"].includes(request.method)) {
+        const noticeId = decodeURIComponent(manualNotice[1]!);
+        return json(request.method === "GET"
+          ? await manualEmailReview(env, noticeId)
+          : await sendNoticeManually(env, noticeId, request.headers.get("Idempotency-Key") ?? "", await readJson(request)));
+      }
       if (url.pathname === "/admin/emails" && request.method === "GET")
         return json(await emailHistory(env, url));
       if (url.pathname === "/admin/runs" && request.method === "GET")
