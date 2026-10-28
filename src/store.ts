@@ -1,4 +1,5 @@
 import {
+  intSetting,
   recipients,
   sha256,
   type Env,
@@ -157,13 +158,26 @@ export async function ingest(
   }
   const outbox = [];
   const to = baseline ? [] : recipients(env);
+  const maxAge = intSetting(env.NOTIFY_MAX_AGE_DAYS, 30, 3650);
+  const cutoff = now.getTime() - maxAge * 86_400_000;
   const newAnnouncements = versions.filter((version) => version.kind === "new");
+  let notified = 0;
   for (const version of newAnnouncements) {
+    // NMC re-lists old archive entries under new document IDs. Keep them in
+    // history, but only email announcements whose published date is recent.
+    const stale =
+      version.published_on !== null &&
+      Date.parse(version.published_on) < cutoff;
+    if (!stale) notified++;
     for (const recipient of to) {
       outbox.push({
         id: await sha256(`${version.id}:${recipient}`),
         version_id: version.id,
         recipient,
+        status: stale ? "cancelled" : "pending",
+        last_error: stale
+          ? `Published more than ${maxAge} days ago. Archive entries are recorded but not emailed.`
+          : null,
       });
     }
   }
@@ -209,15 +223,16 @@ export async function ingest(
     statements.push(
       env.DB.prepare(
         `INSERT OR IGNORE INTO outbox
-      (id, version_id, recipient, created_at, next_attempt_at)
+      (id, version_id, recipient, status, last_error, created_at, next_attempt_at)
       SELECT json_extract(value, '$.id'), json_extract(value, '$.version_id'),
-        json_extract(value, '$.recipient'), ?, ? FROM json_each(?)`,
+        json_extract(value, '$.recipient'), json_extract(value, '$.status'),
+        json_extract(value, '$.last_error'), ?, ? FROM json_each(?)`,
       ).bind(timestamp, timestamp, JSON.stringify(outbox)),
     );
   }
   statements.push(stateUpdate);
   await env.DB.batch(statements);
-  return newAnnouncements.length;
+  return notified;
 }
 
 export async function status(env: Env) {

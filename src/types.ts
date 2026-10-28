@@ -14,6 +14,7 @@ export interface Env {
   BASELINE_PAGES_PER_RUN?: string;
   AUDIT_PAGES_PER_RUN?: string;
   EMAILS_PER_RUN?: string;
+  NOTIFY_MAX_AGE_DAYS?: string;
 }
 
 export interface Notice {

@@ -95,9 +95,15 @@ export const now = new Date("2026-10-24T12:00:00.000Z");
 
 export function listing(
   ids: string[],
-  options: { page?: number; total?: number; title?: string } = {},
+  options: {
+    page?: number;
+    total?: number;
+    title?: string;
+    date?: [day: string, month: string, year: string];
+  } = {},
 ) {
   const page = options.page ?? 1;
+  const [day, month, year] = options.date ?? ["15", "Oct", "2026"];
   const total = options.total ?? ids.length;
   const last = Math.ceil(total / 20);
   return `<div class="wn-info-bar">Showing <strong>${(page - 1) * 20 + 1}–${(page - 1) * 20 + ids.length}</strong> of <strong>${total}</strong> results</div>
@@ -106,7 +112,7 @@ export function listing(
         (id) => `<tr class="wn-tr">
       <td class="wn-td-desc"><a class="wn-title-link" href="https://nmc.org.in/whats-new/download/${id}">${options.title ?? `Notice ${id}`}</a><span class="notice-new">New</span></td>
       <td><a class="wn-dl-btn" href="https://nmc.org.in/whats-new/download/${id}">PDF</a></td>
-      <td><span class="wn-date-day">15</span><span class="wn-date-mon">Oct</span><span class="wn-date-yr">2026</span></td>
+      <td><span class="wn-date-day">${day}</span><span class="wn-date-mon">${month}</span><span class="wn-date-yr">${year}</span></td>
     </tr>`,
       )
       .join(

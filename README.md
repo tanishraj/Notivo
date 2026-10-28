@@ -228,6 +228,7 @@ Cron runs every minute (`* * * * *`), independent of the dashboard scan interval
 | `BASELINE_PAGES_PER_RUN` | `3` | Baseline pages per run, maximum 3 |
 | `AUDIT_PAGES_PER_RUN` | `2` | Older audit pages per run, maximum 2 |
 | `EMAILS_PER_RUN` | `5` | Maximum sends per cycle, maximum 5 |
+| `NOTIFY_MAX_AGE_DAYS` | `30` | New entries published longer ago than this are recorded as cancelled, not emailed; NMC re-lists old notices under new document IDs |
 
 These limits bound requests and D1 operations per invocation. The outbox is intended for a small fixed recipient list. For large subscriber volumes, add Cloudflare Queues and a subscription management flow.
 
