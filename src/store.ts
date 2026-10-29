@@ -65,6 +65,8 @@ export async function ingest(
       title: n.title,
       published_on: n.publishedOn,
       document_url: n.documentUrl,
+      marked_new: n.markedNew ?? false,
+      date_text: n.dateText ?? "",
       fallback_id: `text:${await sha256(JSON.stringify([n.title, n.publishedOn]))}`,
       fingerprint: await sha256(
         JSON.stringify([n.title, n.publishedOn, n.documentUrl]),
@@ -147,11 +149,13 @@ export async function ingest(
   let archived = 0;
   if (!baseline) {
     for (const record of records) {
-      // NMC's listing can hide a row at a page boundary and show it later. A new
-      // document ID with an old published date is archive, not an announcement:
-      // record it like the first import, with no history entry or email.
+      // NMC's listing can hide a row at a page boundary and show it later, and
+      // re-uploads old notices under new IDs. A new document ID with no NEW badge
+      // and an old published date is archive: record it like the first import,
+      // with no history entry or email.
       if (
         !previous.has(record.id) &&
+        !record.marked_new &&
         record.published_on !== null &&
         ageInDays(record.published_on, today) > maxAge
       ) {
@@ -176,26 +180,19 @@ export async function ingest(
   const outbox = [];
   const to = baseline ? [] : recipients(env);
   const newVersions = versions.filter((version) => version.kind === "new");
-  const newIds = newVersions.map((v) => v.notice_id);
-  const sameDay = newVersions.length
-    ? (
-        await env.DB.prepare(
-          `SELECT id, title, published_on FROM notices
-          WHERE published_on IN (SELECT value FROM json_each(?))
-            AND id NOT IN (SELECT value FROM json_each(?))`,
-        )
-          .bind(
-            JSON.stringify([...new Set(newVersions.map((v) => v.published_on).filter(Boolean))]),
-            JSON.stringify(newIds),
-          )
-          .all<{ id: string; title: string; published_on: string | null }>()
-      ).results
-    : [];
-  const decisions = decideNewNotices(newVersions, sameDay, {
-    today,
-    autoSendDays: Math.min(maxAge, intSetting(env.AUTO_SEND_DAYS, 7, 30)),
-    newEntriesPerCheckLimit: intSetting(env.NEW_ENTRIES_PER_CHECK_LIMIT, 5, 100),
-  });
+  const recordById = new Map(records.map((r) => [r.id, r]));
+  const decisions = decideNewNotices(
+    newVersions.map((version) => ({
+      version,
+      markedNew: recordById.get(version.notice_id)?.marked_new ?? false,
+      dateText: recordById.get(version.notice_id)?.date_text ?? "",
+    })),
+    {
+      today,
+      maxAgeDays: maxAge,
+      newEntriesPerCheckLimit: intSetting(env.NEW_ENTRIES_PER_CHECK_LIMIT, 5, 100),
+    },
+  );
   const newAnnouncements = newVersions.filter((v) => decisions.get(v.id)?.send);
   const reviews = newVersions.flatMap((v) => {
     const decision = decisions.get(v.id);

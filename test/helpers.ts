@@ -114,17 +114,26 @@ export function listing(
     titles?: Record<string, string>;
     date?: [day: string, month: string, year: string];
     dates?: Record<string, [day: string, month: string, year: string]>;
+    /** Like NMC, rows dated in the 4 weeks before the test clock show NEW unless overridden. */
+    badges?: Record<string, boolean>;
   } = {},
 ) {
   const page = options.page ?? 1;
   const [day, month, year] = options.date ?? ["22", "Oct", "2026"];
+  const badgeFor = (id: string) => {
+    if (options.badges?.[id] !== undefined) return options.badges[id];
+    const [d, m, y] = options.dates?.[id] ?? [day, month, year];
+    const at = Date.parse(`${d} ${m} ${y} UTC`);
+    const age = (now.getTime() - at) / 86_400_000;
+    return /^\d{4}$/.test(y) && Number(y) > 1900 && age >= -1 && age <= 28;
+  };
   const total = options.total ?? ids.length;
   const last = Math.ceil(total / 20);
   return `<div class="wn-info-bar">Showing <strong>${(page - 1) * 20 + 1}–${(page - 1) * 20 + ids.length}</strong> of <strong>${total}</strong> results</div>
     <table class="wn-table"><tbody>${ids
       .map(
         (id) => `<tr class="wn-tr">
-      <td class="wn-td-desc"><a class="wn-title-link" href="https://nmc.org.in/whats-new/download/${id}">${options.titles?.[id] ?? options.title ?? `Notice ${id}`}</a><span class="notice-new">New</span></td>
+      <td class="wn-td-desc"><a class="wn-title-link" href="https://nmc.org.in/whats-new/download/${id}">${options.titles?.[id] ?? options.title ?? `Notice ${id}`}</a>${badgeFor(id) ? '<span class="notice-new">New</span>' : ""}</td>
       <td><a class="wn-dl-btn" href="https://nmc.org.in/whats-new/download/${id}">PDF</a></td>
       <td><span class="wn-date-day">${(options.dates?.[id] ?? [day])[0]}</span><span class="wn-date-mon">${(options.dates?.[id] ?? [, month])[1]}</span><span class="wn-date-yr">${(options.dates?.[id] ?? [, , year])[2]}</span></td>
     </tr>`,

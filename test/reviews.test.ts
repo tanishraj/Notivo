@@ -20,42 +20,50 @@ const pending = async () =>
 const waiting = async () => (await status(settings())).reviews as { id: string; reason: string }[];
 
 describe("new notice rules", () => {
-  it("emails a new notice published in the last 7 days straight away", async () => {
+  const badDate: Date3 = ["10", "Aug", "0202"];
+
+  it("emails a new notice with the NEW badge or a date in the last 30 days", async () => {
     const config = settings();
     await runCycle(config, site(listing(["1"])), now);
-    await runCycle(config, site(listing(["1", "2"], { dates: { "2": daysAgo(7) } })), later(1));
-    expect(await pending()).toBe(1);
+    const page = listing(["1", "2", "3", "4"], {
+      dates: { "2": daysAgo(2), "3": daysAgo(30), "4": daysAgo(2) },
+      badges: { "2": true, "3": false, "4": false },
+    });
+    expect(await runCycle(config, site(page), later(1))).toMatchObject({ scan: { notifications: 3 } });
+    expect(await pending()).toBe(3);
     expect(await count("notice_reviews")).toBe(0);
   });
 
-  it("holds notices dated 8 to 30 days ago, undated or in the future", async () => {
+  it("emails a recent notice even when its title and date match a stored one", async () => {
+    const config = settings();
+    await runCycle(config, site(listing(["1"], { title: "22/10/2026 - Seat Matrix for PG" })), now);
+    await runCycle(config, site(listing(["1", "2"], { title: "22/10/2026 - Seat Matrix for PG" })), later(1));
+    expect(await pending()).toBe(1);
+  });
+
+  it("records an old entry without the badge quietly, with no review or admin note", async () => {
+    const config = settings();
+    await runCycle(config, site(listing(["1"])), now);
+    await runCycle(config, site(listing(["1", "399"], { dates: { "399": ["17", "Sep", "2025"] } })), later(1));
+    expect(await count("notices")).toBe(2);
+    expect(await pending()).toBe(0);
+    expect(await count("notice_reviews")).toBe(0);
+  });
+
+  it("holds an unreadable, missing or future date, and an old date marked New", async () => {
     const config = settings();
     await runCycle(config, site(listing(["1"])), now);
     const page = listing(["1", "2", "3", "4", "5"], {
-      dates: { "2": daysAgo(8), "3": daysAgo(30), "4": ["", "", ""], "5": ["30", "Oct", "2026"] },
+      dates: { "2": badDate, "3": ["", "", ""], "4": ["30", "Oct", "2026"], "5": ["17", "Sep", "2025"] },
+      badges: { "5": true },
     });
-    const result = await runCycle(config, site(page), later(1));
-    expect(result).toMatchObject({ scan: { notifications: 0 } });
+    expect(await runCycle(config, site(page), later(1))).toMatchObject({ scan: { notifications: 0 } });
     expect(await pending()).toBe(0);
     expect((await waiting()).map((r) => [r.id, r.reason]).sort()).toEqual([
-      ["2", "It was published 8 days ago. Recent NMC notices usually appear within 7 days."],
-      ["3", "It was published 30 days ago. Recent NMC notices usually appear within 7 days."],
-      ["4", "NMC listed it without a readable published date."],
-      ["5", "Its published date, 2026-10-30, is in the future."],
-    ]);
-  });
-
-  it("holds a recent notice whose title and date match a stored one", async () => {
-    const config = settings();
-    await runCycle(config, site(listing(["1"], { titles: { "1": "22/10/2026 - Seat Matrix for PG" } })), now);
-    await runCycle(
-      config,
-      site(listing(["1", "2"], { titles: { "1": "22/10/2026 - Seat Matrix for PG", "2": "22/10/2026- Seat  Matrix for PG" } })),
-      later(1),
-    );
-    expect(await pending()).toBe(0);
-    expect(await waiting()).toEqual([
-      expect.objectContaining({ id: "2", reason: expect.stringContaining("NMC 1 has the same title and published date") }),
+      ["2", 'NMC shows its published date as "10 Aug 0202", which is not a valid date.'],
+      ["3", "NMC listed it without a published date."],
+      ["4", "Its published date, 2026-10-30, is in the future."],
+      ["5", "NMC marks it New, but its published date is 2025-09-17, 402 days ago."],
     ]);
   });
 
@@ -74,21 +82,22 @@ describe("new notice rules", () => {
   it("queues a held notice for every recipient on Send, once", async () => {
     const config = settings({ EMAIL_TO: "a@example.com, b@example.com" });
     await runCycle(config, site(listing(["1"])), now);
-    await runCycle(config, site(listing(["1", "2"], { dates: { "2": daysAgo(10) } })), later(1));
+    const page = listing(["1", "2"], { dates: { "2": badDate } });
+    await runCycle(config, site(page), later(1));
     expect(await decideReview(config, "2", "send")).toMatchObject({ status: "sent", queued: 2 });
     expect(await pending()).toBe(2);
     expect(await waiting()).toEqual([]);
     await expect(decideReview(config, "2", "send")).rejects.toThrow("already sent");
     expect(await pending()).toBe(2);
     // A later scan does not hold or queue it again.
-    await runCycle(config, site(listing(["1", "2"], { dates: { "2": daysAgo(10) } })), later(2));
+    await runCycle(config, site(page), later(2));
     expect(await pending()).toBe(2);
   });
 
   it("keeps a dismissed notice in history without emailing it", async () => {
     const config = settings();
     await runCycle(config, site(listing(["1"])), now);
-    await runCycle(config, site(listing(["1", "2"], { dates: { "2": daysAgo(10) } })), later(1));
+    await runCycle(config, site(listing(["1", "2"], { dates: { "2": badDate } })), later(1));
     expect(await decideReview(config, "2", "dismiss")).toMatchObject({ status: "dismissed" });
     expect(await pending()).toBe(0);
     expect(await waiting()).toEqual([]);
@@ -124,12 +133,13 @@ describe("admin alerts", () => {
     const sent: { to: string[]; subject: string; text: string }[] = [];
     await runCycle(sending, nmc(listing(["1"]), sent), now);
     expect(sent).toEqual([]);
-    const page = listing(["1", "2"], { titles: { "2": "Held notice" }, dates: { "2": daysAgo(12) } });
+    const page = listing(["1", "2"], { titles: { "2": "Held notice" }, dates: { "2": ["10", "Aug", "0202"] } });
     await runCycle(sending, nmc(page, sent), later(1));
     expect(adminMail(sent)).toHaveLength(1);
     expect(sent.every((m) => m.to[0] === "admin@example.com")).toBe(true);
     expect(sent[0]!.subject).toBe("Notivo: 1 NMC entry needs your review");
-    expect(sent[0]!.text).toContain("Held notice (NMC 2, published 2026-10-12)");
+    expect(sent[0]!.text).toContain("Held notice (NMC 2, published date not given)");
+    expect(sent[0]!.text).toContain('NMC shows its published date as "10 Aug 0202"');
 
     await runCycle(sending, nmc(page, sent), later(2));
     expect(adminMail(sent)).toHaveLength(1);
@@ -138,14 +148,12 @@ describe("admin alerts", () => {
     expect(sent[1]!.subject).toBe("Notivo reminder: 1 NMC entry is waiting for your review");
   });
 
-  it("tells the admin about older entries recorded without email", async () => {
+  it("sends no admin email for an old entry recorded quietly", async () => {
     await admin();
     const sent: { to: string[]; subject: string; text: string }[] = [];
     await runCycle(sending, nmc(listing(["1"]), sent), now);
-    await runCycle(sending, nmc(listing(["1", "399"], { titles: { "399": "Old rabies notice" }, dates: { "399": ["17", "Sep", "2025"] } }), sent), later(1));
-    expect(sent).toHaveLength(1);
-    expect(sent[0]!.subject).toBe("Notivo: 1 older NMC entry recorded without email");
-    expect(sent[0]!.text).toContain("Old rabies notice (NMC 399, published 2025-09-17)");
+    await runCycle(sending, nmc(listing(["1", "399"], { dates: { "399": ["17", "Sep", "2025"] } }), sent), later(1));
+    expect(sent).toEqual([]);
   });
 
   it("alerts once when checks have failed for 2 hours, and again after a recovery", async () => {
@@ -167,7 +175,7 @@ describe("admin alerts", () => {
     await admin();
     const sent: { to: string[]; subject: string; text: string }[] = [];
     await runCycle(settings({ EMAIL_ENABLED: "false" }), nmc(listing(["1"]), sent), now);
-    await runCycle(settings({ EMAIL_ENABLED: "false" }), nmc(listing(["1", "2"], { dates: { "2": daysAgo(12) } }), sent), later(1));
+    await runCycle(settings({ EMAIL_ENABLED: "false" }), nmc(listing(["1", "2"], { dates: { "2": ["10", "Aug", "0202"] } }), sent), later(1));
     expect(sent).toEqual([]);
     expect(await count("notice_reviews")).toBe(1);
   });

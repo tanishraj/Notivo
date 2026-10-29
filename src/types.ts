@@ -15,7 +15,6 @@ export interface Env {
   AUDIT_PAGES_PER_RUN?: string;
   EMAILS_PER_RUN?: string;
   NOTIFY_MAX_AGE_DAYS?: string;
-  AUTO_SEND_DAYS?: string;
   NEW_ENTRIES_PER_CHECK_LIMIT?: string;
   PORTAL_URL?: string;
 }
@@ -25,6 +24,10 @@ export interface Notice {
   title: string;
   publishedOn: string | null;
   documentUrl: string | null;
+  /** NMC shows its red NEW badge on this row. */
+  markedNew?: boolean;
+  /** The published date exactly as NMC shows it, for explaining unreadable dates. */
+  dateText?: string;
 }
 
 export interface Listing {

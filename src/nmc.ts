@@ -87,7 +87,8 @@ export async function parseListing(response: Response, expectedPage: number): Pr
     const publishedOn = publishedDate(r.day, r.month, r.year);
     const link = r.href ? documentLink(r.href) : null;
     return { id: link?.id ?? `text:${await sha256(JSON.stringify([title, publishedOn]))}`,
-      title, documentUrl: link?.url ?? null, publishedOn };
+      title, documentUrl: link?.url ?? null, publishedOn,
+      markedNew: Boolean(badge), dateText: clean(`${r.day} ${r.month} ${r.year}`) };
   }));
   if (new Set(notices.map((n) => n.id)).size !== notices.length) throw new Error('Duplicate notice IDs in NMC page');
   return { notices, page: expectedPage, lastPage, total };

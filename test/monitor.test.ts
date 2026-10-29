@@ -100,14 +100,11 @@ describe("monitor state and outbox", () => {
       true,
     );
     expect(await count("notices")).toBe(3);
+    expect(await count("outbox")).toBe(2);
     const kinds = await env.DB.prepare("SELECT kind FROM notice_versions").all<{
       kind: string;
     }>();
-    expect(kinds.results).toHaveLength(2);
     expect(kinds.results.every((row) => row.kind === "new")).toBe(true);
-    // Both share a title and date with a stored notice, so they wait for review.
-    expect(await count("outbox")).toBe(0);
-    expect(await count("notice_reviews")).toBe(2);
   });
 
   it("considers stored linked rows outside the current scan before matching a fallback", async () => {
@@ -130,10 +127,7 @@ describe("monitor state and outbox", () => {
         "SELECT notice_id, kind FROM notice_versions",
       ).first(),
     ).toMatchObject({ notice_id: "3", kind: "new" });
-    expect(await count("outbox")).toBe(0);
-    expect(
-      await env.DB.prepare("SELECT notice_id FROM notice_reviews").first(),
-    ).toEqual({ notice_id: "3" });
+    expect(await count("outbox")).toBe(1);
   });
 
   it("preserves a baseline notice when its document link becomes available", async () => {
@@ -319,8 +313,8 @@ describe("monitor state and outbox", () => {
     expect(await count("outbox")).toBe(0);
     expect(
       await env.DB.prepare("SELECT notice_id, reason FROM notice_reviews").first(),
-    ).toEqual({ notice_id: "1882", reason: "NMC listed it without a readable published date." });
-    // A longer archive window holds older entries for review instead of archiving them.
+    ).toEqual({ notice_id: "1882", reason: "NMC listed it without a published date." });
+    // A longer archive window emails older entries instead of archiving them.
     await env.DB.batch([
       env.DB.prepare("DELETE FROM notice_reviews"),
       env.DB.prepare("DELETE FROM notice_versions WHERE notice_id IN ('399', '1882')"),
@@ -331,9 +325,8 @@ describe("monitor state and outbox", () => {
       site(listing(["885", "399"], { date: old })),
       now,
     );
-    expect(await count("outbox")).toBe(0);
     expect(
-      await env.DB.prepare("SELECT notice_id FROM notice_reviews").first(),
-    ).toEqual({ notice_id: "399" });
+      await env.DB.prepare("SELECT status FROM outbox").first(),
+    ).toEqual({ status: "pending" });
   });
 });

@@ -228,32 +228,30 @@ Cron runs every minute (`* * * * *`), independent of the dashboard scan interval
 | `BASELINE_PAGES_PER_RUN` | `3` | Baseline pages per run, maximum 3 |
 | `AUDIT_PAGES_PER_RUN` | `2` | Older audit pages per run, maximum 2 |
 | `EMAILS_PER_RUN` | `5` | Maximum sends per cycle, maximum 5 |
-| `NOTIFY_MAX_AGE_DAYS` | `30` | A new document ID published longer ago than this is recorded as an archive entry, with no email |
-| `AUTO_SEND_DAYS` | `7` | A new document ID published within this many days is emailed straight away, maximum 30 |
+| `NOTIFY_MAX_AGE_DAYS` | `30` | A new document ID without the NEW badge, published longer ago than this, is recorded as an archive entry with no email |
 | `NEW_ENTRIES_PER_CHECK_LIMIT` | `5` | More recent new entries than this in one check are all held for review, maximum 100 |
 | `PORTAL_URL` | unset | Portal address linked from admin alert emails |
 
 ### What counts as a new notice
 
-Notivo decides each new NMC document ID by its published date, measured in India time:
+Notivo decides each new NMC document ID from its NEW badge and its published date, measured in India time:
 
 | New entry | What happens |
 | --- | --- |
-| Published within `AUTO_SEND_DAYS` | Emailed to recipients straight away |
-| Published more than `NOTIFY_MAX_AGE_DAYS` ago | Recorded in notice history as an archive entry. Never emailed |
-| Anything uncertain | Held on the Overview page until the admin chooses **Send** or **Dismiss** |
+| Shows the NEW badge, or was published within `NOTIFY_MAX_AGE_DAYS` | Emailed to recipients straight away |
+| No NEW badge, and a valid date older than `NOTIFY_MAX_AGE_DAYS` | Recorded in notice history as an archive entry. Never emailed |
+| Anything unsure | Held on the Overview page until the admin chooses **Send** or **Dismiss** |
 
-An entry is uncertain when it was published between those two limits, has no readable or a future published date, shares its title and date with a stored notice, or arrives with more than `NEW_ENTRIES_PER_CHECK_LIMIT` other recent entries in one check. Titles are compared without the leading date, spacing or dashes. Changes to a notice Notivo already tracks only update its history.
+An entry is unsure when its published date is missing or unreadable, such as NMC's `10 Aug 0202`, when the date is in the future, when NMC marks an old-dated entry New, or when more than `NEW_ENTRIES_PER_CHECK_LIMIT` new entries that would be emailed arrive in one check, which can mean NMC renumbered its notices. Changes to a notice Notivo already tracks only update its history. Titles are never used to block an email, so a repeat upload of a recent notice can be sent twice.
 
-Old-dated entries are not new postings. When several notices share a published date across a page boundary, NMC's listing shows one of them twice and hides another until the list shifts, and the rolling audit finds the hidden row later. NMC also re-uploads old notices under new IDs and has renumbered every notice when it moved sites.
+Old-dated entries are not new postings. When several notices share a published date across a page boundary, NMC's listing shows one of them twice and hides another until the list shifts, and the rolling audit finds the hidden row later. NMC also re-uploads old notices under new IDs and renumbered every notice when it moved sites.
 
 ### Admin alerts
 
 When sending is enabled, the admin account's email address gets a short message, never sent to recipients, when:
 
 - a new entry is held for review, with a daily reminder while anything waits,
-- an older entry is recorded as archive without email, in case it is actually new,
-- NMC checks have failed for more than 2 hours.
+- NMC checks have failed for more than 2 hours. The Overview health banner shows the same failure and its error.
 
 These limits bound requests and D1 operations per invocation. The outbox is intended for a small fixed recipient list. For large subscriber volumes, add Cloudflare Queues and a subscription management flow.
 

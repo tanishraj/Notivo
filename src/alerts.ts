@@ -27,8 +27,8 @@ const escape = (value: string) =>
   value.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
 const line = (n: Listed) => `${n.title} (NMC ${n.id}, published ${n.published_on ?? "date not given"})`;
 
-/** Email the admin when a notice is held for review, an older entry is recorded
- * without email, or NMC checks keep failing. Recipients never get these. */
+/** Email the admin when a notice is held for review or NMC checks keep failing.
+ * Recipients never get these. */
 export async function sendAdminAlerts(env: Env, fetcher: Fetcher, now: Date) {
   if (
     env.EMAIL_ENABLED !== "true" ||
@@ -52,16 +52,6 @@ export async function sendAdminAlerts(env: Env, fetcher: Fetcher, now: Date) {
     await env.DB.prepare(`${WAITING_REVIEWS} ORDER BY r.created_at, r.notice_id LIMIT 50`).all<Listed>()
   ).results;
   const fresh = waiting.filter((r) => r.created_at! > since);
-  const archived = (
-    await env.DB.prepare(
-      `SELECT id, title, published_on, document_url FROM notices n
-      WHERE first_seen_at > ? AND first_seen_at > ?
-        AND NOT EXISTS (SELECT 1 FROM notice_versions v WHERE v.notice_id = n.id)
-      ORDER BY first_seen_at, id LIMIT 50`,
-    )
-      .bind(since, state.baseline_completed_at)
-      .all<Listed>()
-  ).results;
   const outage = Boolean(
     state.consecutive_failures > 0 &&
       state.last_success_at &&
@@ -72,16 +62,14 @@ export async function sendAdminAlerts(env: Env, fetcher: Fetcher, now: Date) {
     waiting.length > 0 &&
     !fresh.length &&
     (!state.admin_alerted_at || now.getTime() - Date.parse(state.admin_alerted_at) >= REMINDER_MS);
-  if (!fresh.length && !archived.length && !outage && !reminder) return { sent: false, reason: "Nothing to report" };
+  if (!fresh.length && !outage && !reminder) return { sent: false, reason: "Nothing to report" };
 
   const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
   const subject = outage
     ? "Notivo: NMC checks have failed for over 2 hours"
     : fresh.length
       ? `Notivo: ${plural(waiting.length, "NMC entry needs", "NMC entries need")} your review`
-      : reminder
-        ? `Notivo reminder: ${plural(waiting.length, "NMC entry is", "NMC entries are")} waiting for your review`
-        : `Notivo: ${plural(archived.length, "older NMC entry", "older NMC entries")} recorded without email`;
+      : `Notivo reminder: ${plural(waiting.length, "NMC entry is", "NMC entries are")} waiting for your review`;
   const portal = env.PORTAL_URL?.trim();
   const sections: { heading: string; intro: string; items: Listed[]; reasons?: boolean }[] = [];
   if (outage)
@@ -96,12 +84,6 @@ export async function sendAdminAlerts(env: Env, fetcher: Fetcher, now: Date) {
       intro: "Notivo could not be sure these are new, so it has not emailed your recipients. Open Notivo and choose Send or Dismiss for each one.",
       items: waiting,
       reasons: true,
-    });
-  if (archived.length)
-    sections.push({
-      heading: "Recorded as archive, not emailed",
-      intro: "These appeared on NMC with published dates more than 30 days old, so they were saved to notice history without an email. If one is actually new, send it from Notices in Notivo.",
-      items: archived,
     });
   const text = [
     ...sections.flatMap((s) => [
@@ -130,7 +112,7 @@ ${sections
 <p style="color:#8592a4;font-size:12px;margin-top:24px">Only the Notivo admin receives this email.</p></div>`;
 
   const key = await sha256(
-    JSON.stringify([fresh.map((r) => r.id), archived.map((r) => r.id), outage ? state.last_success_at : null, reminder ? now.toISOString().slice(0, 10) : null]),
+    JSON.stringify([fresh.map((r) => r.id), outage ? state.last_success_at : null, reminder ? now.toISOString().slice(0, 10) : null]),
   );
   await env.DB.prepare("UPDATE monitor_state SET admin_alert_attempted_at = ? WHERE id = 1")
     .bind(now.toISOString())
