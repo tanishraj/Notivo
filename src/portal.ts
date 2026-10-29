@@ -34,7 +34,7 @@ export async function noticeHistory(env: Env, url: URL) {
       .bind(...args)
       .first<{ count: number }>(),
     env.DB.prepare(
-      `SELECT n.id, n.title, n.published_on, n.document_url, n.first_seen_at, n.last_seen_at,
+      `SELECT n.id, n.title, n.published_on, n.document_url, n.first_seen_at, n.last_seen_at, n.removed_at,
       COALESCE(${latestKind}, 'baseline') AS kind,
       (SELECT COUNT(*) FROM notice_versions WHERE notice_id = n.id) AS version_count
       FROM notices n ${where} ORDER BY n.published_on DESC, n.first_seen_at DESC, n.id DESC LIMIT ? OFFSET ?`,

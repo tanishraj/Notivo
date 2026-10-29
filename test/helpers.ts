@@ -8,6 +8,7 @@ import emailActivityMigration from "../migrations/0006_email_activity.sql?raw";
 import emailRetriesMigration from "../migrations/0007_email_retries.sql?raw";
 import quietArchiveMigration from "../migrations/0008_quiet_archive_entries.sql?raw";
 import reviewsMigration from "../migrations/0009_notice_reviews.sql?raw";
+import removalsMigration from "../migrations/0010_notice_removals.sql?raw";
 import type { Env, Fetcher } from "../src/types";
 
 export async function migrate() {
@@ -59,6 +60,10 @@ export async function migrate() {
     {
       name: "0009_notice_reviews.sql",
       queries: reviewsMigration.split(";").map((s) => s.trim()).filter(Boolean),
+    },
+    {
+      name: "0010_notice_removals.sql",
+      queries: removalsMigration.split(";").map((s) => s.trim()).filter(Boolean),
     },
   ]);
 }

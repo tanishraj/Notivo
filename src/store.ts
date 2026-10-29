@@ -221,7 +221,8 @@ export async function ingest(
       json_extract(value, '$.fingerprint'), json_extract(value, '$.first_seen_at'), ? FROM json_each(?) WHERE 1
     ON CONFLICT(id) DO UPDATE SET title = excluded.title, published_on = excluded.published_on,
       document_url = excluded.document_url, fingerprint = excluded.fingerprint,
-      first_seen_at = MIN(notices.first_seen_at, excluded.first_seen_at), last_seen_at = excluded.last_seen_at`,
+      first_seen_at = MIN(notices.first_seen_at, excluded.first_seen_at), last_seen_at = excluded.last_seen_at,
+      removed_at = NULL, removal_checked_at = NULL`,
     ).bind(timestamp, JSON.stringify(records)),
   ];
   if (merges.length) {
@@ -294,7 +295,9 @@ export const WAITING_REVIEWS = `SELECT r.notice_id AS id, n.title, n.published_o
 export async function status(env: Env) {
   const [state, counts, outbox, runs, problems, attention, reviews] = await Promise.all([
     getState(env.DB),
-    env.DB.prepare("SELECT COUNT(*) AS notices FROM notices").first(),
+    env.DB.prepare(
+      "SELECT COUNT(*) - COUNT(removed_at) AS notices, COUNT(removed_at) AS removed FROM notices",
+    ).first(),
     env.DB.prepare(
       "SELECT status, COUNT(*) AS count FROM email_deliveries GROUP BY status",
     ).all(),

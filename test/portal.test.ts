@@ -207,8 +207,9 @@ describe("portal history", () => {
     } finally {
       vi.unstubAllGlobals();
     }
-    expect(fetcher).toHaveBeenCalledTimes(1);
-    expect(String(fetcher.mock.calls[0]?.[0])).toContain("nmc.org.in");
+    // The listing, plus a removal check for the notice not seen since the test clock. Never Resend.
+    expect(fetcher.mock.calls.length).toBeGreaterThan(0);
+    expect(fetcher.mock.calls.every(([url]) => String(url).includes("nmc.org.in"))).toBe(true);
     const pending = await config.DB.prepare(
       "SELECT status, attempts FROM outbox",
     ).first();

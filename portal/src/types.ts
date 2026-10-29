@@ -35,7 +35,7 @@ export interface Status {
     last_error: string | null;
     consecutive_failures: number;
   };
-  counts: { notices: number };
+  counts: { notices: number; removed?: number };
   emails: { status: EmailStatus; count: number }[];
   emailAttentionCount: number;
   reviews: Review[];
@@ -57,6 +57,8 @@ export interface Notice {
   document_url: string | null;
   first_seen_at: string;
   last_seen_at: string;
+  /** Set when NMC deleted the notice. It stays in history. */
+  removed_at?: string | null;
   kind: "new" | "updated" | "baseline";
   version_count: number;
 }
