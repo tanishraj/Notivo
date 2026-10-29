@@ -42,6 +42,7 @@ import { Login } from "./components/login";
 import { Settings } from "./components/settings";
 import { EmailActionResult, SendPendingEmails } from "./components/email-actions";
 import { ArchiveEmail } from "./components/archive-email";
+import { ReviewQueue } from "./components/review-queue";
 import type { Email, List, Notice, Page, Run, Status } from "./types";
 
 const titles: Record<Page, string> = {
@@ -380,6 +381,7 @@ function Overview({
                 : "Check needed"}
         </Badge>
       </div>
+      <ReviewQueue reviews={status.reviews ?? []} onChanged={retry} onExpired={onExpired} />
       <section className="metrics" aria-label="Monitor summary">
         <div>
           <span>Unique notices tracked</span>

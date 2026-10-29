@@ -30,6 +30,7 @@
       "account_id": "97ac2e243aea8618cadae1d3a73202bb",
       "workers_dev": true,
       "vars": {
+        "PORTAL_URL": "https://notivo.notivo.workers.dev",
         "EMAIL_ENABLED": "false",
         "RECENT_PAGES": "3",
         "BASELINE_PAGES_PER_RUN": "3",

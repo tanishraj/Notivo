@@ -559,6 +559,88 @@ svg {
 .health-banner > .badge {
   margin-left: auto;
 }
+.review-queue {
+  border: 1px solid #e5decb;
+  border-radius: 10px;
+  background: #fffdf6;
+  padding: 16px 20px;
+  margin: -12px 0 26px;
+  display: grid;
+  gap: 12px;
+}
+.review-queue-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  color: #967124;
+}
+.review-queue-head strong {
+  color: #0b1d38;
+  font-size: 12px;
+  font-weight: 600;
+}
+.review-queue-head p,
+.review-queue-message,
+.review-queue-error {
+  color: #69634f;
+  font-size: 11px;
+  line-height: 1.55;
+  margin-top: 3px;
+}
+.review-queue-message {
+  color: #376747;
+  padding-left: 29px;
+}
+.review-queue-error {
+  color: #a1362c;
+  padding-left: 29px;
+}
+.review-queue ul {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 0 29px;
+  display: grid;
+  gap: 12px;
+}
+.review-queue li {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  border-top: 1px solid #efe8d6;
+  padding-top: 12px;
+}
+.review-text {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+  flex: 1 1 320px;
+}
+.review-title {
+  font-size: 12px;
+  color: #0b1d38;
+  overflow-wrap: anywhere;
+}
+a.review-title {
+  text-decoration: none;
+}
+a.review-title:hover {
+  text-decoration: underline;
+}
+.review-meta {
+  font-size: 10.5px;
+  color: #657388;
+}
+.review-reason {
+  font-size: 10.5px;
+  color: #79571a;
+}
+.review-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
 .badge {
   display: inline-flex;
   align-items: center;

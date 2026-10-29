@@ -11,6 +11,7 @@ import { dismissEmail, emailHistory, noticeHistory, QueryError, runHistory } fro
 import { authInfo, bootstrapAdmin, createAuth, InputError, readJson } from "./auth";
 import { effectiveEnv, saveSettings, settingsView } from "./config";
 import { manualEmailReview, retryFailedEmail, sendNoticeManually } from "./manual-email";
+import { decideReview } from "./reviews";
 
 const headers = {
   "Cache-Control": "no-store",
@@ -178,6 +179,9 @@ export default {
         });
       if (url.pathname === "/admin/notices" && request.method === "GET")
         return json(await noticeHistory(env, url));
+      const review = /^\/admin\/reviews\/([^/]+)\/(send|dismiss)$/.exec(url.pathname);
+      if (review && request.method === "POST")
+        return json(await decideReview(env, decodeURIComponent(review[1]!), review[2] as "send" | "dismiss"));
       const manualNotice = /^\/admin\/notices\/([^/]+)\/email$/.exec(url.pathname);
       if (manualNotice && ["GET", "POST"].includes(request.method)) {
         const noticeId = decodeURIComponent(manualNotice[1]!);

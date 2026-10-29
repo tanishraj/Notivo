@@ -1,3 +1,4 @@
+import { sendAdminAlerts } from "./alerts";
 import { sendPending } from "./email";
 import { fetchListing } from "./nmc";
 import { acquireLease, getState, ingest, releaseLease } from "./store";
@@ -63,7 +64,8 @@ export async function scan(env: Env, fetcher: Fetcher, now: Date) {
   const update = baseline
     ? env.DB.prepare(
         `UPDATE monitor_state SET baseline_next_page = ?, baseline_completed_at = ?,
-        last_success_at = ?, source_total = ?, last_error = NULL, consecutive_failures = 0 WHERE id = 1`,
+        last_success_at = ?, source_total = ?, last_error = NULL, consecutive_failures = 0,
+        outage_alerted_at = NULL WHERE id = 1`,
       ).bind(
         nextPage,
         baselineComplete ? timestamp : null,
@@ -72,7 +74,8 @@ export async function scan(env: Env, fetcher: Fetcher, now: Date) {
       )
     : env.DB.prepare(
         `UPDATE monitor_state SET audit_next_page = ?, audit_due_at = ?,
-        last_success_at = ?, source_total = ?, last_error = NULL, consecutive_failures = 0 WHERE id = 1`,
+        last_success_at = ?, source_total = ?, last_error = NULL, consecutive_failures = 0,
+        outage_alerted_at = NULL WHERE id = 1`,
       ).bind(auditPage, auditDue, timestamp, sourceTotal);
   const notifications = await ingest(env, notices, baseline, now, update);
   return {
@@ -162,6 +165,15 @@ async function cycle(
     } catch (error) {
       emailResult = { error: errorMessage(error) };
     }
+    // Tell the admin about held notices, quietly archived entries and failing checks.
+    let alerts: Awaited<ReturnType<typeof sendAdminAlerts>> | { error: string } | undefined;
+    if (!scanOnly) {
+      try {
+        alerts = await sendAdminAlerts(env, fetcher, now);
+      } catch (error) {
+        alerts = { error: errorMessage(error) };
+      }
+    }
     const ok = scanResult && !("error" in scanResult) ? scanResult : undefined;
     await env.DB.batch([
       env.DB.prepare(
@@ -188,6 +200,7 @@ async function cycle(
       skipped: false as const,
       scan: scanResult,
       emails: emailResult,
+      alerts,
     };
     console.log(JSON.stringify({ event: "monitor_cycle", ...result }));
     return result;

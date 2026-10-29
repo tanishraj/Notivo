@@ -15,6 +15,15 @@ export interface UserProfile {
   name: string;
   email: string;
 }
+/** A new NMC entry held back until the admin sends or dismisses it. */
+export interface Review {
+  id: string;
+  title: string;
+  published_on: string | null;
+  document_url: string | null;
+  reason: string;
+  created_at: string;
+}
 export interface Status {
   currentUser: UserProfile | null;
   state: {
@@ -29,6 +38,7 @@ export interface Status {
   counts: { notices: number };
   emails: { status: EmailStatus; count: number }[];
   emailAttentionCount: number;
+  reviews: Review[];
   recentRuns: Run[];
   emailEnabled: boolean;
   monitorEnabled: boolean;

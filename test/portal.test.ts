@@ -130,7 +130,7 @@ describe("portal history", () => {
   });
 
   it("hides cancelled alerts by default before pagination and keeps their history available", async () => {
-    const config = settings();
+    const config = settings({ NEW_ENTRIES_PER_CHECK_LIMIT: "50" });
     const headers = bearer(config.ADMIN_TOKEN!);
     await runCycle(config, site(listing(["1"])), now, false, true);
     await runCycle(
