@@ -1,5 +1,6 @@
 import { sendAdminAlerts } from "./alerts";
 import { sendPending } from "./email";
+import { checkRemovals } from "./removals";
 import { fetchListing } from "./nmc";
 import { acquireLease, getState, ingest, releaseLease } from "./store";
 import {
@@ -78,12 +79,21 @@ export async function scan(env: Env, fetcher: Fetcher, now: Date) {
         outage_alerted_at = NULL WHERE id = 1`,
       ).bind(auditPage, auditDue, timestamp, sourceTotal);
   const notifications = await ingest(env, notices, baseline, now, update);
+  let removals: Awaited<ReturnType<typeof checkRemovals>> | undefined;
+  if (!baseline) {
+    try {
+      removals = await checkRemovals(env, fetcher, now);
+    } catch (error) {
+      console.error(JSON.stringify({ event: "removal_check_failed", message: errorMessage(error) }));
+    }
+  }
   return {
     mode: baseline ? "baseline" : "monitor",
     baselineComplete: baseline ? baselineComplete : true,
     pages,
     notices: new Set(notices.map((n) => n.id)).size,
     notifications,
+    removals,
   };
 }
 

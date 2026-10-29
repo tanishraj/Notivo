@@ -288,6 +288,9 @@ function NoticeRows({
             </h3>
             {!compact ? (
               <p className="notice-tracking">
+                {notice.removed_at
+                  ? "Removed by NMC · "
+                  : ""}
                 {notice.kind === "baseline"
                   ? "Imported from archive"
                   : `First seen ${date(notice.first_seen_at, true)}`}
@@ -390,6 +393,9 @@ function Overview({
             {status.state.source_total
               ? `${numberFormat.format(status.state.source_total)} entries listed on NMC`
               : "Original links stay on NMC"}
+            {status.counts.removed
+              ? ` · ${numberFormat.format(status.counts.removed)} removed by NMC`
+              : ""}
           </p>
         </div>
         <div>
