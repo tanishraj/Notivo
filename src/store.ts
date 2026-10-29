@@ -49,6 +49,30 @@ export async function releaseLease(
     .run();
 }
 
+/** Stored notices that share an ID or a fallback ID with the scanned rows, or
+ * have the same title and published date. */
+export function findStoredMatches<T>(
+  db: D1Database,
+  incoming: { id: string; fallback_id: string; title: string; published_on: string | null }[],
+) {
+  return db
+    .prepare(
+      // CROSS JOIN keeps the scanned rows as the outer loop, so each one is an index seek.
+      `SELECT id, title, published_on, document_url, fingerprint, first_seen_at FROM notices
+    WHERE id IN (SELECT value FROM json_each(?))
+    UNION
+    SELECT n.id, n.title, n.published_on, n.document_url, n.fingerprint, n.first_seen_at
+    FROM json_each(?) r CROSS JOIN notices n
+    WHERE n.title = json_extract(r.value, '$.title')
+      AND n.published_on IS json_extract(r.value, '$.published_on')`,
+    )
+    .bind(
+      JSON.stringify(incoming.flatMap((r) => [r.id, r.fallback_id])),
+      JSON.stringify(incoming.map((r) => ({ title: r.title, published_on: r.published_on }))),
+    )
+    .all<T>();
+}
+
 /** Commit all fetched pages, notification records, and scan cursor together. */
 export async function ingest(
   env: Env,
@@ -81,17 +105,7 @@ export async function ingest(
     fingerprint: string;
     first_seen_at: string;
   };
-  const old = await env.DB.prepare(
-    `SELECT id, title, published_on, document_url, fingerprint, first_seen_at FROM notices n
-    WHERE id IN (SELECT value FROM json_each(?)) OR EXISTS (
-      SELECT 1 FROM json_each(?) r WHERE n.title = json_extract(r.value, '$.title')
-      AND n.published_on IS json_extract(r.value, '$.published_on'))`,
-  )
-    .bind(
-      JSON.stringify(incoming.flatMap((r) => [r.id, r.fallback_id])),
-      JSON.stringify(incoming),
-    )
-    .all<Stored>();
+  const old = await findStoredMatches<Stored>(env.DB, incoming);
   const byId = new Map(old.results.map((r) => [r.id, r]));
   const linkedGroups = new Map<string, Set<string>>();
   for (const record of [...old.results, ...incoming]) {
