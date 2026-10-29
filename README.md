@@ -228,7 +228,15 @@ Cron runs every minute (`* * * * *`), independent of the dashboard scan interval
 | `BASELINE_PAGES_PER_RUN` | `3` | Baseline pages per run, maximum 3 |
 | `AUDIT_PAGES_PER_RUN` | `2` | Older audit pages per run, maximum 2 |
 | `EMAILS_PER_RUN` | `5` | Maximum sends per cycle, maximum 5 |
-| `NOTIFY_MAX_AGE_DAYS` | `30` | New entries published longer ago than this are recorded as cancelled, not emailed; NMC re-lists old notices under new document IDs |
+| `NOTIFY_MAX_AGE_DAYS` | `30` | A new document ID published longer ago than this is recorded as an archive entry, with no email |
+
+### What counts as a new notice
+
+A notice is emailed only when its NMC document ID has never been seen and its published date falls within `NOTIFY_MAX_AGE_DAYS`. NMC sorts the listing by published date, so a genuinely new notice always appears at the top of page 1.
+
+A new document ID with an older published date is recorded in notice history as an archive entry and never emailed. These rows are not new postings. When several notices share a published date across a page boundary, NMC's listing shows one of them twice and hides another until the list shifts. The rolling audit then finds the hidden row later. NMC also re-uploads old notices under new IDs, keeping their original dates.
+
+An entry with no readable published date is still emailed, because its age is unknown.
 
 These limits bound requests and D1 operations per invocation. The outbox is intended for a small fixed recipient list. For large subscriber volumes, add Cloudflare Queues and a subscription management flow.
 

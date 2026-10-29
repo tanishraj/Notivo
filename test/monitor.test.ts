@@ -285,7 +285,7 @@ describe("monitor state and outbox", () => {
     expect((await getState(env.DB)).audit_due_at).not.toBeNull();
   });
 
-  it("records re-listed archive entries without emailing old announcements", async () => {
+  it("records an old-dated new ID as an archive entry with no history or email", async () => {
     const config = settings();
     await runCycle(config, site(listing(["885"])), now);
     const old: [string, string, string] = ["17", "Sep", "2025"];
@@ -296,20 +296,13 @@ describe("monitor state and outbox", () => {
     );
     expect(result).toMatchObject({ scan: { notifications: 0 } });
     expect(
-      await env.DB.prepare(
-        "SELECT kind FROM notice_versions WHERE notice_id = '399'",
-      ).first(),
-    ).toEqual({ kind: "new" });
-    expect(
-      (await env.DB.prepare("SELECT status, last_error FROM outbox").all())
-        .results,
-    ).toEqual([
-      {
-        status: "cancelled",
-        last_error:
-          "Published more than 30 days ago. Archive entries are recorded but not emailed.",
-      },
-    ]);
+      await env.DB.prepare("SELECT id, published_on FROM notices WHERE id = '399'").first(),
+    ).toEqual({ id: "399", published_on: "2025-09-17" });
+    expect(await count("notice_versions")).toBe(1);
+    expect(await count("outbox")).toBe(0);
+    // Seen again on a later audit pass, it stays a quiet archive entry.
+    await runCycle(config, site(listing(["885", "399"], { date: old })), now);
+    expect(await count("outbox")).toBe(0);
     // Entries without a readable date still notify: their age is unknown.
     const undated = await runCycle(
       config,

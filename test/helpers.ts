@@ -6,6 +6,7 @@ import identityMigration from "../migrations/0004_notice_identity.sql?raw";
 import manualEmailMigration from "../migrations/0005_manual_email.sql?raw";
 import emailActivityMigration from "../migrations/0006_email_activity.sql?raw";
 import emailRetriesMigration from "../migrations/0007_email_retries.sql?raw";
+import quietArchiveMigration from "../migrations/0008_quiet_archive_entries.sql?raw";
 import type { Env, Fetcher } from "../src/types";
 
 export async function migrate() {
@@ -49,6 +50,10 @@ export async function migrate() {
     {
       name: "0007_email_retries.sql",
       queries: emailRetriesMigration.split(";").map((s) => s.trim()).filter(Boolean),
+    },
+    {
+      name: "0008_quiet_archive_entries.sql",
+      queries: quietArchiveMigration.split(";").map((s) => s.trim()).filter(Boolean),
     },
   ]);
 }
