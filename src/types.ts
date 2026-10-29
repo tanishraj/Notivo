@@ -15,6 +15,9 @@ export interface Env {
   AUDIT_PAGES_PER_RUN?: string;
   EMAILS_PER_RUN?: string;
   NOTIFY_MAX_AGE_DAYS?: string;
+  AUTO_SEND_DAYS?: string;
+  NEW_ENTRIES_PER_CHECK_LIMIT?: string;
+  PORTAL_URL?: string;
 }
 
 export interface Notice {
@@ -40,6 +43,9 @@ export interface State {
   last_success_at: string | null;
   last_error: string | null;
   consecutive_failures: number;
+  admin_alerted_at?: string | null;
+  admin_alert_attempted_at?: string | null;
+  outage_alerted_at?: string | null;
 }
 
 export interface Version {

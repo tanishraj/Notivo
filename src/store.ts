@@ -1,3 +1,4 @@
+import { ageInDays, decideNewNotices, indiaToday } from "./classify";
 import {
   intSetting,
   recipients,
@@ -141,7 +142,7 @@ export async function ingest(
     return { ...record, id, first_seen_at: firstSeen };
   });
   const maxAge = intSetting(env.NOTIFY_MAX_AGE_DAYS, 30, 3650);
-  const cutoff = now.getTime() - maxAge * 86_400_000;
+  const today = indiaToday(now);
   const versions: Version[] = [];
   let archived = 0;
   if (!baseline) {
@@ -152,7 +153,7 @@ export async function ingest(
       if (
         !previous.has(record.id) &&
         record.published_on !== null &&
-        Date.parse(record.published_on) < cutoff
+        ageInDays(record.published_on, today) > maxAge
       ) {
         archived++;
         continue;
@@ -174,7 +175,36 @@ export async function ingest(
     console.log(JSON.stringify({ event: "archive_entries_recorded", count: archived }));
   const outbox = [];
   const to = baseline ? [] : recipients(env);
-  const newAnnouncements = versions.filter((version) => version.kind === "new");
+  const newVersions = versions.filter((version) => version.kind === "new");
+  const newIds = newVersions.map((v) => v.notice_id);
+  const sameDay = newVersions.length
+    ? (
+        await env.DB.prepare(
+          `SELECT id, title, published_on FROM notices
+          WHERE published_on IN (SELECT value FROM json_each(?))
+            AND id NOT IN (SELECT value FROM json_each(?))`,
+        )
+          .bind(
+            JSON.stringify([...new Set(newVersions.map((v) => v.published_on).filter(Boolean))]),
+            JSON.stringify(newIds),
+          )
+          .all<{ id: string; title: string; published_on: string | null }>()
+      ).results
+    : [];
+  const decisions = decideNewNotices(newVersions, sameDay, {
+    today,
+    autoSendDays: Math.min(maxAge, intSetting(env.AUTO_SEND_DAYS, 7, 30)),
+    newEntriesPerCheckLimit: intSetting(env.NEW_ENTRIES_PER_CHECK_LIMIT, 5, 100),
+  });
+  const newAnnouncements = newVersions.filter((v) => decisions.get(v.id)?.send);
+  const reviews = newVersions.flatMap((v) => {
+    const decision = decisions.get(v.id);
+    return decision && !decision.send
+      ? [{ notice_id: v.notice_id, version_id: v.id, reason: decision.reason }]
+      : [];
+  });
+  if (reviews.length)
+    console.log(JSON.stringify({ event: "notices_held_for_review", count: reviews.length }));
   for (const version of newAnnouncements) {
     for (const recipient of to) {
       outbox.push({
@@ -198,6 +228,18 @@ export async function ingest(
     ).bind(timestamp, JSON.stringify(records)),
   ];
   if (merges.length) {
+    statements.push(
+      env.DB.prepare(
+        `UPDATE OR IGNORE notice_reviews SET notice_id =
+      (SELECT json_extract(value, '$.to') FROM json_each(?) WHERE json_extract(value, '$.from') = notice_reviews.notice_id)
+      WHERE notice_id IN (SELECT json_extract(value, '$.from') FROM json_each(?))`,
+      ).bind(JSON.stringify(merges), JSON.stringify(merges)),
+    );
+    statements.push(
+      env.DB.prepare(
+        `DELETE FROM notice_reviews WHERE notice_id IN (SELECT json_extract(value, '$.from') FROM json_each(?))`,
+      ).bind(JSON.stringify(merges)),
+    );
     statements.push(
       env.DB.prepare(
         `UPDATE notice_versions SET notice_id =
@@ -232,13 +274,28 @@ export async function ingest(
       ).bind(timestamp, timestamp, JSON.stringify(outbox)),
     );
   }
+  if (reviews.length) {
+    statements.push(
+      env.DB.prepare(
+        `INSERT OR IGNORE INTO notice_reviews (notice_id, version_id, reason, created_at)
+        SELECT json_extract(value, '$.notice_id'), json_extract(value, '$.version_id'),
+          json_extract(value, '$.reason'), ? FROM json_each(?)`,
+      ).bind(timestamp, JSON.stringify(reviews)),
+    );
+  }
   statements.push(stateUpdate);
   await env.DB.batch(statements);
   return newAnnouncements.length;
 }
 
+/** Held notices still waiting for a decision. A notice already sent by hand counts as decided. */
+export const WAITING_REVIEWS = `SELECT r.notice_id AS id, n.title, n.published_on, n.document_url, r.reason, r.created_at
+  FROM notice_reviews r JOIN notices n ON n.id = r.notice_id
+  WHERE r.status = 'waiting' AND NOT EXISTS (SELECT 1 FROM email_deliveries d
+    WHERE d.notice_id = r.notice_id AND d.status IN ('pending', 'accepted'))`;
+
 export async function status(env: Env) {
-  const [state, counts, outbox, runs, problems, attention] = await Promise.all([
+  const [state, counts, outbox, runs, problems, attention, reviews] = await Promise.all([
     getState(env.DB),
     env.DB.prepare("SELECT COUNT(*) AS notices FROM notices").first(),
     env.DB.prepare(
@@ -250,6 +307,7 @@ export async function status(env: Env) {
       FROM email_activity_current WHERE status IN ('failed', 'uncertain') AND dismissed_at IS NULL AND resolved = 0 AND retried = 0 ORDER BY created_at DESC LIMIT 20`,
     ).all(),
     env.DB.prepare("SELECT COUNT(*) AS count FROM email_activity_current WHERE status IN ('failed', 'uncertain') AND dismissed_at IS NULL AND resolved = 0 AND retried = 0").first<{ count: number }>(),
+    env.DB.prepare(`${WAITING_REVIEWS} ORDER BY r.created_at DESC, r.notice_id DESC LIMIT 50`).all(),
   ]);
   return {
     state,
@@ -258,6 +316,7 @@ export async function status(env: Env) {
     recentRuns: runs.results,
     emailProblems: problems.results,
     emailAttentionCount: attention?.count ?? 0,
+    reviews: reviews.results,
     emailEnabled: env.EMAIL_ENABLED === "true",
     monitorEnabled: env.MONITOR_ENABLED !== "false",
     checkIntervalMinutes: Number(env.CHECK_INTERVAL_MINUTES ?? 15),
