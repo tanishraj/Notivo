@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import worker from "../src/index";
+import app from "../src/index";
 import { runCycle } from "../src/monitor";
 import { listing, migrate, now, reset, settings, site } from "./helpers";
 
@@ -17,7 +17,7 @@ function bearer(token: string) {
 describe("portal history", () => {
   it("protects every history endpoint", async () => {
     for (const path of ["notices", "emails", "runs"])
-      expect((await worker.fetch(request(path), settings())).status).toBe(401);
+      expect((await app.fetch(request(path), settings())).status).toBe(401);
   });
 
   it("paginates and searches real notices, distinguishing archive imports and updates", async () => {
@@ -42,7 +42,7 @@ describe("portal history", () => {
       },
       now,
     );
-    const first = await worker.fetch(request("notices", { headers }), config);
+    const first = await app.fetch(request("notices", { headers }), config);
     const data = (await first.json()) as {
       total: number;
       items: { kind: string }[];
@@ -51,7 +51,7 @@ describe("portal history", () => {
     expect(data.items).toHaveLength(20);
     expect(data.items[0]?.kind).toBe("baseline");
     expect(first.headers.get("Cache-Control")).toBe("no-store");
-    const second = await worker.fetch(
+    const second = await app.fetch(
       request("notices?page=2", { headers }),
       config,
     );
@@ -62,7 +62,7 @@ describe("portal history", () => {
     };
     expect(secondPage).toMatchObject({ page: 2, total: 25 });
     expect(secondPage.items).toHaveLength(5);
-    const matches = await worker.fetch(
+    const matches = await app.fetch(
       request("notices?q=Notice%2025", { headers }),
       config,
     );
@@ -75,7 +75,7 @@ describe("portal history", () => {
       site(listing(["25"], { title: "Revised notice title" })),
       now,
     );
-    const updated = await worker.fetch(
+    const updated = await app.fetch(
       request("notices?kind=updated", { headers }),
       config,
     );
@@ -83,7 +83,7 @@ describe("portal history", () => {
       total: 1,
       items: [{ id: "25", kind: "updated", version_count: 1 }],
     });
-    const literalWildcard = await worker.fetch(
+    const literalWildcard = await app.fetch(
       request("notices?q=%25", { headers }),
       config,
     );
@@ -95,7 +95,7 @@ describe("portal history", () => {
     const headers = bearer(config.ADMIN_TOKEN!);
     await runCycle(config, site(listing(["1"])), now);
     await runCycle(config, site(listing(["2"])), now);
-    const emails = await worker.fetch(
+    const emails = await app.fetch(
       request("emails?status=pending", { headers }),
       config,
     );
@@ -110,7 +110,7 @@ describe("portal history", () => {
       notice_id: "2",
     });
     expect(data.items[0]).not.toHaveProperty("payload_json");
-    const runs = await worker.fetch(request("runs", { headers }), config);
+    const runs = await app.fetch(request("runs", { headers }), config);
     expect(await runs.json()).toMatchObject({
       total: 2,
       page: 1,
@@ -124,7 +124,7 @@ describe("portal history", () => {
       "notices?q=" + "x".repeat(201),
     ]) {
       expect(
-        (await worker.fetch(request(path, { headers }), config)).status,
+        (await app.fetch(request(path, { headers }), config)).status,
       ).toBe(400);
     }
   });
@@ -153,7 +153,7 @@ describe("portal history", () => {
       WHEN '24' THEN 'cancelled' WHEN '25' THEN 'cancelled' ELSE 'pending' END`).run();
 
     const get = async (path: string) => {
-      const response = await worker.fetch(request(path, { headers }), config);
+      const response = await app.fetch(request(path, { headers }), config);
       expect(response.status).toBe(200);
       return response.json() as Promise<{
         total: number;
@@ -192,7 +192,7 @@ describe("portal history", () => {
     const fetcher = vi.fn(site(listing(["2"])));
     vi.stubGlobal("fetch", fetcher);
     try {
-      const response = await worker.fetch(
+      const response = await app.fetch(
         request("check", {
           method: "POST",
           headers: bearer(config.ADMIN_TOKEN!),
@@ -224,13 +224,13 @@ describe("portal history", () => {
         }),
     );
     const config = settings({ ASSETS: { fetch: assets } });
-    const shell = await worker.fetch(new Request(origin), config);
+    const shell = await app.fetch(new Request(origin), config);
     expect(shell.status).toBe(200);
     expect(shell.headers.get("Content-Security-Policy")).toContain(
       "frame-ancestors 'none'",
     );
     expect(shell.headers.get("Cache-Control")).toBe("no-store");
-    expect((await worker.fetch(request("notices"), config)).status).toBe(401);
+    expect((await app.fetch(request("notices"), config)).status).toBe(401);
     expect(assets).toHaveBeenCalledTimes(1);
   });
 });

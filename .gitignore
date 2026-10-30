@@ -1,6 +1,9 @@
 node_modules/
+# Left over from the Cloudflare setup; safe to delete locally.
 .wrangler/
 dist/
+build/
+data/
 portal/dist/
 .dev.vars
 .dev.vars.*
@@ -12,10 +15,3 @@ coverage/
 *.log
 .DS_Store
 
-# Generated design previews; recreate with the scripts in scripts/.
-designs/email-options/*.html
-designs/email-options/*.png
-designs/email-options/assets/
-designs/grouped-email/preview.html
-designs/grouped-email/preview.json
-designs/grouped-email/preview.png

@@ -35,7 +35,7 @@ export function createAuth(env: Env, request: Request, allowSignup = false) {
         sameSite: "strict",
         path: "/admin",
       },
-      ipAddress: { ipAddressHeaders: ["cf-connecting-ip"] },
+      ipAddress: { ipAddressHeaders: ["x-client-ip"] },
     },
     rateLimit: {
       enabled: true,

@@ -1,4 +1,5 @@
 import { decodeHTML } from 'entities';
+import { HTMLRewriter } from './html-rewriter';
 import { SOURCE_URL, sha256, type Fetcher, type Listing, type Notice } from './types';
 
 const clean = (s: string) => s.replace(/\s+/g, ' ').trim();
@@ -104,7 +105,7 @@ export async function fetchListing(page: number, fetcher: Fetcher = fetch): Prom
       const response = await fetcher(url.toString(), {
         headers: { 'User-Agent': 'NMCNoticeMonitor/0.1', Accept: 'text/html', 'Cache-Control': 'no-cache' },
         signal: AbortSignal.timeout(15_000),
-        // Workers supports follow/manual, but not the browser's error mode.
+        // A redirect is never followed: it fails as a non-OK response below.
         redirect: 'manual',
       });
       if (!response.ok) {

@@ -1,76 +1,9 @@
-import { applyD1Migrations, env } from "cloudflare:test";
-import migration from "../migrations/0001_initial.sql?raw";
-import portalMigration from "../migrations/0002_portal_indexes.sql?raw";
-import authMigration from "../migrations/0003_auth_and_settings.sql?raw";
-import identityMigration from "../migrations/0004_notice_identity.sql?raw";
-import manualEmailMigration from "../migrations/0005_manual_email.sql?raw";
-import emailActivityMigration from "../migrations/0006_email_activity.sql?raw";
-import emailRetriesMigration from "../migrations/0007_email_retries.sql?raw";
-import quietArchiveMigration from "../migrations/0008_quiet_archive_entries.sql?raw";
-import reviewsMigration from "../migrations/0009_notice_reviews.sql?raw";
-import removalsMigration from "../migrations/0010_notice_removals.sql?raw";
-import titleIndexMigration from "../migrations/0011_notice_title_index.sql?raw";
+import { applyMigrations } from "../server/migrate";
 import type { Env, Fetcher } from "../src/types";
+import { env, MIGRATIONS, sqlite } from "./env";
 
-export async function migrate() {
-  await applyD1Migrations(env.DB, [
-    {
-      name: "0001_initial.sql",
-      queries: migration
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    {
-      name: "0002_portal_indexes.sql",
-      queries: portalMigration
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    {
-      name: "0003_auth_and_settings.sql",
-      queries: authMigration
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    {
-      name: "0004_notice_identity.sql",
-      queries: identityMigration
-        .split(";")
-        .map((s) => s.trim())
-        .filter(Boolean),
-    },
-    {
-      name: "0005_manual_email.sql",
-      queries: manualEmailMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0006_email_activity.sql",
-      queries: emailActivityMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0007_email_retries.sql",
-      queries: emailRetriesMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0008_quiet_archive_entries.sql",
-      queries: quietArchiveMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0009_notice_reviews.sql",
-      queries: reviewsMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0010_notice_removals.sql",
-      queries: removalsMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-    {
-      name: "0011_notice_title_index.sql",
-      queries: titleIndexMigration.split(";").map((s) => s.trim()).filter(Boolean),
-    },
-  ]);
+export function migrate() {
+  applyMigrations(sqlite, MIGRATIONS);
 }
 
 export async function reset() {

@@ -2,46 +2,52 @@
 
 **Important updates, delivered.**
 
-The repository’s default development branch is `develop`.
+The repository’s default development branch is `develop`. Changes for the self-hosted installation go to `stage`: Coolify deploys every push to `stage` to [notivo.snmih.in](https://notivo.snmih.in).
 
 Notivo monitors public notices and delivers email updates with links to their original documents. Its first source is the [National Medical Commission’s What’s New listing](https://nmc.org.in/whats-new).
 
-The current implementation is a TypeScript Cloudflare Worker with Cloudflare D1 for notice tracking and Resend for email. Emails link directly to the original NMC documents. The application never downloads, copies, or serves PDFs.
+The current implementation is a TypeScript Node.js server, run as one Docker container and deployed with Coolify. It stores notices in SQLite (Node's built-in `node:sqlite`) and sends email with Resend. Emails link directly to the original NMC documents. The application never downloads, copies, or serves PDFs.
 
 ## What is included
 
-- Cloudflare wakes every minute; NMC scans follow the configured minimum interval (15 minutes by default), while due emails can send on every wake.
+- The server wakes every minute; NMC scans follow the configured minimum interval (15 minutes by default), while due emails can send on every wake.
 - Resumable baseline of the complete archive, without sending historical notices.
 - Checks the newest three pages on subsequent runs.
 - A rolling scan of older pages to find backdated additions and changes.
-- Notices identified by their download ID, rather than dates, numeric ordering, or the website’s “New” badge.
-- Emails for genuinely new entries after the starting baseline, regardless of publication date. Existing-entry metadata changes remain in history without notification emails.
+- Notices identified by their download ID. New IDs are emailed, recorded quietly or held for review using the NEW badge and published date (see [What counts as a new notice](#what-counts-as-a-new-notice)). Existing-entry metadata changes remain in history without notification emails.
 - A transactional outbox, separate messages per recipient, bounded retries, and Resend idempotency keys.
 - A database lease to prevent overlapping scans and sends.
 - Authenticated JSON status, manual run, send, and email preview endpoints.
 - A private React portal with searchable notice history, email activity, check history, previews, and scan-only manual checks.
-- A public health endpoint and structured Worker logs.
-- Tests running in the actual local Workers runtime with D1.
+- A public health endpoint and structured JSON logs.
+- Tests against a real SQLite database, using captured NMC pages.
 
-The portal uses the free [shadcnblocks Sidebar 1](https://www.shadcnblocks.com/block/sidebar1) foundation and editable shadcn/ui components, customized to the approved navy-and-white theme. It is served by the same Worker as the API.
+The portal uses the free [shadcnblocks Sidebar 1](https://www.shadcnblocks.com/block/sidebar1) foundation and editable shadcn/ui components, customized to the approved navy-and-white theme. It is served by the same server as the API.
 
 ## Architecture
 
 ```text
-Cron → fetch NMC HTML → HTMLRewriter → compare with D1
+1-minute timer → fetch NMC HTML → HTMLRewriter → compare with SQLite
                                          ↓
                             save notice/version + outbox
                                          ↓
                                Resend → original NMC link
 ```
 
-Cloudflare hosts the application and all persistent application data. D1 contains notice metadata, versions, recipient delivery records, scan progress, admin accounts/sessions, and dashboard settings. Passwords are hashed by Better Auth. Dashboard Resend keys are encrypted with AES-GCM; the encryption key, authentication secret, and bootstrap/CLI token remain Worker secrets. No R2 bucket is needed.
+All persistent data lives in one SQLite file (`/data/notivo.db` in the container): notice metadata, versions, recipient delivery records, scan progress, admin accounts/sessions, and dashboard settings. Passwords are hashed by Better Auth. Dashboard Resend keys are encrypted with AES-GCM; the encryption key, authentication secret, and bootstrap/CLI token are environment variables.
 
-The Worker uses `entities` to decode HTML punctuation in notice titles and the Workers Fetch API for HTTP requests, including Resend. The portal uses React, Vite, Tailwind CSS, shadcn/ui, and Lucide icons. Its compiled assets are served through Cloudflare Workers Static Assets.
+```text
+src/       the application: routes, scanning, email, auth, database access
+server/    the Node.js entry point: HTTP server, portal files, migrations, timer
+portal/    the React portal (built to portal/dist/)
+migrations/  SQL migrations, applied automatically on start
+```
+
+HTML is parsed with `html-rewriter-wasm` (the lol-html engine) and `entities` decodes HTML punctuation in notice titles. HTTP requests, including to Resend, use the built-in `fetch`. The portal uses React, Vite, Tailwind CSS, shadcn/ui, and Lucide icons.
 
 ## Local setup
 
-Use Node.js 22 or later and npm.
+Use Node.js 24 and npm.
 
 ```sh
 npm ci
@@ -54,21 +60,15 @@ Edit `.dev.vars`: replace `ADMIN_TOKEN` with a random value of at least 24 chara
 openssl rand -hex 32
 ```
 
-Then initialize local D1:
-
-```sh
-npm run db:migrate:local
-```
-
 ### Open the private portal
 
 ```sh
 npm run dev
 ```
 
-Open **http://localhost:8787** (or the URL Wrangler prints). On your first visit, create the admin account with your name, email, a password of 12–128 characters, and the `ADMIN_TOKEN` from `.dev.vars` as a one-time setup token. Future visits use email and password. Public registration is disabled, and the database permits one admin account.
+`npm run dev` builds the portal and server, then serves them at **http://localhost:3000** with a local database in `data/notivo.db`. Database migrations apply automatically. Open the address. On your first visit, create the admin account with your name, email, a password of 12–128 characters, and the `ADMIN_TOKEN` from `.dev.vars` as a one-time setup token. Future visits use email and password. Public registration is disabled, and the database permits one admin account.
 
-`npm run dev` automatically initializes missing local `BETTER_AUTH_SECRET` and `SETTINGS_ENCRYPTION_KEY` values in the ignored `.dev.vars` file, without printing them. Existing values are preserved. Wrangler builds the portal automatically and rebuilds when `portal/src` changes. Keep this terminal running while using the portal.
+`npm run dev` automatically initializes missing local `BETTER_AUTH_SECRET` and `SETTINGS_ENCRYPTION_KEY` values in the ignored `.dev.vars` file, without printing them. Existing values are preserved. Keep this terminal running while using the portal; after changing code, stop it and run `npm run dev` again.
 
 - **Overview:** monitor health, notice counts, queue status, recent publications, and checks.
 - **Notice archive:** search by title or notice ID, filter new/updated/imported notices, and browse pages of 20.
@@ -84,15 +84,13 @@ Open **http://localhost:8787** (or the URL Wrangler prints). On your first visit
 - **Send pending emails** (Email activity): run one send cycle immediately, using the saved email limit and retry times. It does not scan NMC or retry failed/uncertain deliveries.
 - **Send test email** (Configuration): send one clearly labelled `[TEST]` email to the single saved recipient. Save any changes first; email sending and a Resend key must be enabled. The action does not drain the queue. If the outcome is unknown, inspect Resend before reloading to send another test.
 
-Better Auth manages password hashing and eight-hour database sessions. Cookies are HttpOnly, SameSite=Strict, and Secure on HTTPS; session refresh is disabled so eight hours is the maximum lifetime. Sign out revokes the session on the server. Credentials are not stored in localStorage or sessionStorage. Browser mutations require a matching Origin. Sign-in attempts are rate-limited with D1 counters. Serve deployed portals over HTTPS.
+Better Auth manages password hashing and eight-hour database sessions. Cookies are HttpOnly, SameSite=Strict, and Secure on HTTPS; session refresh is disabled so eight hours is the maximum lifetime. Sign out revokes the session on the server. Credentials are not stored in localStorage or sessionStorage. Browser mutations require a matching Origin. Sign-in attempts are rate-limited with counters stored in the database. Serve deployed portals over HTTPS.
 
-Settings are saved in D1 and override their environment defaults after the first save. They apply to subsequent scans/sends and do not require redeployment. Saving settings does not send email. Enabling sending allows future cycles to drain queued messages; existing queued messages retain their original recipients and immutable retry payloads. Pausing automatic monitoring pauses both scheduled checks and sends, while manual checks remain available.
+Settings are saved in the database and override their environment defaults after the first save. They apply to subsequent scans/sends and do not require redeployment. Saving settings does not send email. Enabling sending allows future cycles to drain queued messages; existing queued messages retain their original recipients and immutable retry payloads. Pausing automatic monitoring pauses both scheduled checks and sends, while manual checks remain available.
 
-The scheduler wakes every minute. NMC scans follow the configured minimum interval (15 minutes through 24 hours), measured from the last successful scan. On other wakes, due pending emails are sent without scanning. A manual scan can postpone the next automatic scan, but cannot postpone queued email processing. The per-cycle email limit still applies; additional recipients are processed on subsequent wakes, and retry backoff is respected. No due mail means no send cycle is recorded. Local development does not automatically execute this schedule. The Resend key field is write-only: blank keeps the current key; the remove checkbox explicitly removes it, including an inherited environment key. Preserve `SETTINGS_ENCRYPTION_KEY` when restarting or redeploying. If it is lost, restore it or save a replacement Resend key with a new encryption key.
+The scheduler wakes every minute. NMC scans follow the configured minimum interval (15 minutes through 24 hours), measured from the last successful scan. On other wakes, due pending emails are sent without scanning. A manual scan can postpone the next automatic scan, but cannot postpone queued email processing. The per-cycle email limit still applies; additional recipients are processed on subsequent wakes, and retry backoff is respected. No due mail means no send cycle is recorded. The local development server runs the same schedule. The Resend key field is write-only: blank keeps the current key; the remove checkbox explicitly removes it, including an inherited environment key. Preserve `SETTINGS_ENCRYPTION_KEY` when restarting or redeploying. If it is lost, restore it or save a replacement Resend key with a new encryption key.
 
 If you lose the password, the installation owner can run `npm run admin -- reset-login` with `ADMIN_TOKEN`. This explicitly deletes the admin account and revokes all its sessions; notices, settings, and email history remain. Then create a new account through the portal. Password recovery by email and multiple admin accounts are not included.
-
-For an existing deployment, apply `npm run db:migrate:remote` before deploying this update. For local databases, `npm run db:migrate:local` adds the authentication/settings tables while preserving the archive.
 
 ### Command-line administration
 
@@ -105,7 +103,7 @@ npm run admin -- preview
 npm run admin -- run
 ```
 
-The admin script reads `.dev.vars`; exported environment variables take precedence. It uses `http://localhost:8787` unless `MONITOR_URL` is set. `preview` prints the HTML and plain-text email as JSON. It does not send anything. `run` scans and also drains eligible mail if email sending has been enabled. `send` only drains the outbox.
+The admin script reads `.dev.vars`; exported environment variables take precedence. It uses `http://localhost:3000` unless `MONITOR_URL` is set. `preview` prints the HTML and plain-text email as JSON. It does not send anything. `run` scans and also drains eligible mail if email sending has been enabled. `send` only drains the outbox.
 
 To view the designed email in a browser instead of JSON, run:
 
@@ -113,13 +111,9 @@ To view the designed email in a browser instead of JSON, run:
 npm run email:preview
 ```
 
-Open the generated `.wrangler/email-preview.html` file in your browser. This is a local preview and does not send email. The selected **Minimal Letter (Option 2)** template uses a white background, navy text, a text-only “NMC Notice Updates” masthead, readable publication dates, and a direct link to the original NMC notice. The National Medical Commission is identified as the source; no institute logo or official emblem is used. Table-based markup, system fonts, inline baseline styles, and a narrow-screen layout support email rendering. New notices, updated notices, entries without a document, and explicitly labeled test emails share the same template.
+Open the generated `build/email-preview.html` file in your browser. This is a local preview and does not send email. The selected **Minimal Letter (Option 2)** template uses a white background, navy text, a text-only “NMC Notice Updates” masthead, readable publication dates, and a direct link to the original NMC notice. The National Medical Commission is identified as the source; no institute logo or official emblem is used. Table-based markup, system fonts, inline baseline styles, and a narrow-screen layout support email rendering. New notices, updated notices, entries without a document, and explicitly labeled test emails share the same template.
 
-When the default local server is not running, an admin command starts a temporary local Worker, uses the existing local D1 database, and shuts the Worker down when the command finishes. No second terminal is required. It does not create cloud resources. An explicit `MONITOR_URL` disables this fallback so commands always target the server you configured.
-
-For a long-running development server with live reload, run `npm run dev` and leave it running. Admin commands in another terminal will reuse it. Wait for `Ready on http://localhost:8787`; if Wrangler selects another port, set `MONITOR_URL` to that address.
-
-Local development does not execute cron automatically. Use the admin commands to exercise the same cycle that the deployed scheduler runs.
+Admin commands need the server running: start `npm run dev` in another terminal first. If it uses another port, set `MONITOR_URL` to that address.
 
 ### Send a single test email
 
@@ -139,77 +133,44 @@ The subject starts with `[TEST]`. This command does not scan NMC or send pending
 
 The shared sender `onboarding@resend.dev` can send to the address associated with your Resend account. To email other recipients, use a sender on your own verified domain. [Resend testing restriction](https://resend.com/docs/knowledge-base/403-error-resend-dev-domain).
 
-If an admin command reports that it cannot connect when `MONITOR_URL` is set, check that server is running at the configured address. For temporary Worker startup errors, run `npm run dev` to inspect Wrangler’s startup logs. Stopping a local Worker does not delete the local D1 database or its baseline progress.
+If an admin command reports that it cannot connect, check that the server is running at the configured address. Stopping the server does not delete the local database or its baseline progress.
 
 ## Baseline and pagination
 
-The first run starts baseline mode automatically. A run imports at most three pages; progress is saved in D1. The `baseline` admin command calls the Worker repeatedly until it finishes. At the inspected archive size of 51 pages, this takes 17 successful calls. Requests are sequential, with a one-second pause between listing pages.
+The first run starts baseline mode automatically. A run imports at most three pages; progress is saved in the database. The `baseline` admin command calls the server repeatedly until it finishes. At the inspected archive size of 51 pages, this takes 17 successful calls. Requests are sequential, with a one-second pause between listing pages.
 
 No historical notifications are created. After completion, the next run starts monitoring and requires a valid `EMAIL_TO` setting. The baseline command stops immediately if the baseline is already complete.
 
-Automatic cron initialization also works, but importing the archive at the default 15-minute scan interval takes several hours. Run the baseline command for a faster initial setup. If interrupted, run it again to resume.
+Automatic initialization by the scheduler also works, but importing the archive at the default 15-minute scan interval takes several hours. Run the baseline command for a faster initial setup. If interrupted, run it again to resume.
 
 After baseline, every run reads the latest three pages. When an archive audit is due, it also reads up to two older pages, saving a cursor between runs. At 51 pages, that audit takes about six hours while recent pages continue to be checked. Another audit becomes due 24 hours after completion. Backdated notices can therefore have a longer detection delay than notices on recent pages.
 
-## Cloudflare deployment
+## Deployment (Coolify)
 
-Production portal: [notivo.notivo.workers.dev](https://notivo.notivo.workers.dev).
+Production runs at [notivo.snmih.in](https://notivo.snmih.in). Coolify builds the `Dockerfile` and redeploys on every push to `stage`. The container needs about 40 MB of memory and 250 MB of disk.
 
-Use the named `production` environment for the hosted application. The base configuration remains for local development, so production deployment does not replace the local database binding.
+| Coolify setting | Value |
+| --- | --- |
+| Source | this repository, branch `stage`, through a GitHub App |
+| Build pack | Dockerfile |
+| Port | `3000` |
+| Domain | `https://notivo.snmih.in` |
+| Persistent storage | a volume mounted at `/data` (the database is `/data/notivo.db`) |
+| Health check | Dockerfile `HEALTHCHECK` (checks the portal responds) |
+| Replicas | exactly 1: two copies would scan and email twice |
 
-Production enables `keep_vars` to preserve dashboard-managed variables across deployments. Store credentials such as `RESEND_API_KEY` as Worker secrets. Deployment does not upload local `.dev.vars` files.
+Set these environment variables in Coolify: `ADMIN_TOKEN`, `BETTER_AUTH_SECRET`, `SETTINGS_ENCRYPTION_KEY` and `PORTAL_URL`, plus optional defaults for `EMAIL_TO`, `EMAIL_FROM`, `RESEND_API_KEY` and the settings under [Configuration](#configuration). Generate each server secret with `openssl rand -hex 32`; `SETTINGS_ENCRYPTION_KEY` must be exactly 64 hex characters and `BETTER_AUTH_SECRET` at least 32. For this installation, the values are kept in the ignored `.dev.vars.production` file with owner-only permissions. Preserve `SETTINGS_ENCRYPTION_KEY`: the Resend key saved in the portal can only be decrypted with it.
 
-1. Sign in. Create a D1 database only when setting up a new installation; this installation already has `nmc-notices`:
+Back up the `/data` volume (in Coolify: Persistent Storage → Backup), ideally to storage off the server. Point an external uptime monitor at `/health`; it reports scan failures, so it is not the container health check. Logs are under **Runtime Logs** in Coolify.
 
-   ```sh
-   npx wrangler login
-   npx wrangler d1 create nmc-notices
-   ```
+To run admin commands against production, load its credentials and set its address:
 
-2. Confirm `env.production.account_id` and `env.production.d1_databases[].database_id` in `wrangler.jsonc` point to the intended account and database. If deploying a separate installation, replace those production IDs with your own. Keep `EMAIL_ENABLED` set to `"false"` while initializing.
+```sh
+export MONITOR_URL=https://notivo.snmih.in
+node --env-file=.dev.vars.production scripts/admin.mjs status
+```
 
-3. Initialize the remote database and deploy:
-
-   ```sh
-   npm run db:migrate:production
-   npm run deploy:production
-   ```
-
-4. Configure Worker secrets using the interactive prompts:
-
-   ```sh
-   npx wrangler secret put ADMIN_TOKEN --env production
-   npx wrangler secret put BETTER_AUTH_SECRET --env production
-   npx wrangler secret put SETTINGS_ENCRYPTION_KEY --env production
-   npx wrangler secret put EMAIL_TO --env production
-   npx wrangler secret put EMAIL_FROM --env production
-   npx wrangler secret put RESEND_API_KEY --env production
-   ```
-
-   Generate independent random values with `openssl rand -hex 32` for each of these three server secrets. Keep them private. `SETTINGS_ENCRYPTION_KEY` must contain exactly 64 hex characters; `BETTER_AUTH_SECRET` requires at least 32 characters. Local `.dev.vars` secrets are not deployed automatically.
-
-   For this installation, production credentials are stored locally in the ignored `.dev.vars.production` file with owner-only permissions. It contains independent production server secrets and the configured email credentials. To upload that file without printing its values:
-
-   ```sh
-   npx wrangler secret bulk .dev.vars.production --env production
-   ```
-
-   Keep this file out of Git and preserve the production encryption key: stored dashboard keys require it for decryption.
-
-   Email environment secrets are optional defaults: you can configure recipients, sender, and an encrypted Resend key through the portal instead. The sender's domain must be verified in Resend, and the key needs permission to send email.
-
-5. Set `MONITOR_URL` to the deployed Worker HTTPS URL. Load production credentials for each admin command, so it does not accidentally target the local account:
-
-   ```sh
-   export MONITOR_URL=https://your-worker.your-subdomain.workers.dev
-   node --env-file=.dev.vars.production scripts/admin.mjs baseline
-   node --env-file=.dev.vars.production scripts/admin.mjs status
-   node --env-file=.dev.vars.production scripts/admin.mjs preview
-   ```
-
-6. Open the deployed portal and create the production admin account using the setup token (`ADMIN_TOKEN`) from `.dev.vars.production`. The local account and local email history are not copied to production. Review Configuration and the email preview. Enable email sending and save when ready. Pending notifications accumulated after baseline will then be sent by subsequent cycles. Dashboard values override environment defaults, including the committed `EMAIL_ENABLED=false`.
-
-Cron runs every minute (`* * * * *`), independent of the dashboard scan interval. The schedule is defined in UTC. Store dates and timestamps in UTC.
+To run the container elsewhere: `docker build -t notivo . && docker run -p 3000:3000 -v notivo-data:/data --env-file .env notivo`.
 
 ## Configuration
 
@@ -253,7 +214,7 @@ When sending is enabled, the admin account's email address gets a short message,
 - a new entry is held for review, with a daily reminder while anything waits,
 - NMC checks have failed for more than 2 hours. The Overview health banner shows the same failure and its error.
 
-These limits bound requests and D1 operations per invocation. The outbox is intended for a small fixed recipient list. For large subscriber volumes, add Cloudflare Queues and a subscription management flow.
+These limits bound requests and database work per cycle. The outbox is intended for a small fixed recipient list. For large subscriber volumes, add a job queue and a subscription management flow.
 
 ## Endpoints
 
@@ -294,11 +255,11 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 
 ## Email reliability and limitations
 
-- Notice changes and outbox records are committed together in a D1 batch transaction.
+- Notice changes and outbox records are committed together in one database transaction.
 - Each recipient gets a separate message. Retries use an immutable payload and a deterministic idempotency key.
 - Temporary failures remain pending with exponential backoff, up to one hour between attempts. Each one-minute scheduler wake can attempt a due retry independently of the NMC scan interval.
 - Resend keeps idempotency keys for 24 hours. Automatic retries stop after 23 hours from the first attempt and mark the record `uncertain`. Inspect the Resend dashboard before manually resending; this prevents automatic duplicates after key expiry.
-- Permanent provider failures become `failed`. Inspect `/admin/status` and Worker logs, fix configuration, and reconcile the record with Resend before manually changing its state. There is deliberately no blind “resend everything” endpoint.
+- Permanent provider failures become `failed`. Inspect `/admin/status` and the server logs, fix configuration, and reconcile the record with Resend before manually changing its state. There is deliberately no blind “resend everything” endpoint.
 - `accepted` means Resend accepted the request. Inbox delivery and bounce tracking would require Resend webhooks, which are not included yet.
 - A changed PDF served at the same URL cannot be detected from listing metadata alone. This version does not fetch PDFs or compute document checksums.
 - Entries without a document link use title/date identity and link to the listing. When an unambiguous matching entry gains a download link, Notivo promotes its identity while preserving the original first-seen time and history. Distinct linked download IDs are preserved when matching is ambiguous. Changes to both title/date while no stable ID exists cannot be reliably distinguished from a new entry.
@@ -306,7 +267,24 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 - Malformed source dates are stored as unavailable. The parser does not guess corrected years.
 - Documents remain hosted by NMC. Their availability and content can change at the source.
 
-Use an external uptime monitor against `/health` for scan failure alerts. The detailed delivery counters and problem records are available through authenticated status and Worker logs.
+Use an external uptime monitor against `/health` for scan failure alerts. The detailed delivery counters and problem records are available through authenticated status and the server logs.
+
+## Security checks
+
+The **Checks** GitHub workflow runs on every push and pull request to `stage`, and weekly:
+
+- **Typecheck and test**: the full test suite.
+- **CodeQL**: GitHub code scanning with the `security-extended` queries, for the TypeScript code and the workflows themselves. Findings appear under the repository's **Security → Code scanning** tab.
+- **Trivy**: dependency vulnerabilities, committed secrets and Dockerfile misconfigurations in the source, then vulnerabilities and secrets in the built Docker image. HIGH or CRITICAL findings that have a fix fail the check.
+
+Run the Trivy scans locally with Docker (no install needed):
+
+```sh
+npm run scan:trivy   # source: package-lock.json, secrets, Dockerfile
+npm run scan:image   # builds the image, then scans it
+```
+
+Both use the official Trivy image pinned by digest and the settings in `trivy.yaml`. Trivy's GitHub Action and some release tags were compromised in March 2026, so the workflow runs this pinned image instead, and every action is pinned to a commit. The runtime image leaves out npm, which the server does not use, because npm's bundled packages were the only image findings.
 
 ## Validation
 
@@ -316,17 +294,17 @@ npm test
 npm run build
 ```
 
-Apply all pending migrations before running this version against an existing database. Migrations 0005–0007 add manual delivery auditing, reversible dismissal markers, retry links, and activity views without rewriting notice history or automatic delivery records.
+The server applies pending migrations on start. Migrations never rewrite notice history or delivery records.
 
-Tests use local D1 and mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
+`npm test` runs against an in-memory SQLite database. Tests use mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. A query-plan test checks that the per-scan notice lookup uses indexes rather than reading the whole table. `build` compiles the portal to `portal/dist/` and bundles the server to `build/server.mjs`.
 
-Development dependency overrides keep `undici` and `zod` on compatible patched releases. The lockfile records the tested versions.
+A dependency override keeps `zod` on a compatible patched release. The lockfile records the tested versions.
 
 ## References
 
-- [Better Auth database and native D1 support](https://better-auth.com/docs/concepts/database)
+- [Better Auth database support](https://better-auth.com/docs/concepts/database)
 - [Better Auth email and password authentication](https://better-auth.com/docs/authentication/email-password)
-- [Workers HTMLRewriter](https://developers.cloudflare.com/workers/runtime-apis/html-rewriter/)
-- [D1 batch transactions](https://developers.cloudflare.com/d1/worker-api/d1-database/)
-- [Cron Triggers](https://developers.cloudflare.com/workers/configuration/cron-triggers/)
+- [Node.js `node:sqlite`](https://nodejs.org/api/sqlite.html)
+- [html-rewriter-wasm (lol-html)](https://github.com/cloudflare/html-rewriter-wasm)
+- [Coolify applications](https://coolify.io/docs/applications/)
 - [Resend email API and idempotency keys](https://resend.com/docs/api-reference/emails/send-email)
