@@ -16,7 +16,7 @@ const TYPES: Record<string, string> = {
   ".woff2": "font/woff2",
 };
 
-/** Serves the built portal the way Workers static assets does: exact files,
+/** Serves the built portal: exact files,
  * `/x` as `x.html` or `x/index.html`, and a plain 404 for anything else. */
 export function staticAssets(root: string): NonNullable<Env["ASSETS"]> {
   const base = normalize(root + sep);
@@ -54,16 +54,16 @@ export function staticAssets(root: string): NonNullable<Env["ASSETS"]> {
 
 /** Turn a Node request into a web Request. Coolify's proxy (Traefik) terminates
  * HTTPS, so the scheme comes from X-Forwarded-Proto and the client address from
- * X-Real-Ip, passed on as cf-connecting-ip, which is what the login rate limit reads. */
+ * X-Real-Ip, passed on as x-client-ip, which is what the login rate limit reads. */
 export function toRequest(incoming: IncomingMessage) {
   const headers = new Headers();
   for (const [name, value] of Object.entries(incoming.headers)) {
-    if (value === undefined || name === "cf-connecting-ip") continue;
+    if (value === undefined || name === "x-client-ip") continue;
     for (const item of Array.isArray(value) ? value : [value]) headers.append(name, item);
   }
   const realIp = incoming.headers["x-real-ip"];
   const ip = (Array.isArray(realIp) ? realIp[0] : realIp) ?? incoming.socket.remoteAddress;
-  if (ip) headers.set("cf-connecting-ip", ip);
+  if (ip) headers.set("x-client-ip", ip);
   const forwarded = String(incoming.headers["x-forwarded-proto"] ?? "").split(",")[0]!.trim();
   const scheme = forwarded === "https" ? "https" : "http";
   const url = new URL(incoming.url ?? "/", `${scheme}://${incoming.headers.host ?? "localhost"}`);

@@ -1,18 +1,13 @@
-import { DatabaseSync, type SQLInputValue, type StatementSync } from "node:sqlite";
+import { DatabaseSync, type SQLInputValue } from "node:sqlite";
 
 type Row = Record<string, unknown>;
 interface Meta {
   changes: number;
   last_row_id: number;
-  rows_read: number;
-  rows_written: number;
   duration: number;
-  changed_db: boolean;
-  size_after: number;
-  served_by: string;
 }
 
-/** Open a SQLite file with the settings D1 uses: foreign keys enforced. */
+/** Open the SQLite file with foreign keys enforced. */
 export function openDatabase(path: string) {
   const db = new DatabaseSync(path);
   db.exec("PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;");
@@ -26,10 +21,10 @@ function toSql(value: unknown): SQLInputValue {
   if (typeof value === "boolean") return value ? 1 : 0;
   if (value instanceof ArrayBuffer) return new Uint8Array(value);
   if (ArrayBuffer.isView(value)) return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-  throw new TypeError(`D1_TYPE_ERROR: Type '${typeof value}' not supported for value '${String(value)}'`);
+  throw new TypeError(`Type '${typeof value}' cannot be stored (value '${String(value)}')`);
 }
 
-class Statement {
+export class Statement {
   constructor(
     private readonly db: DatabaseSync,
     readonly sql: string,
@@ -40,10 +35,10 @@ class Statement {
     return new Statement(this.db, this.sql, values.map(toSql));
   }
 
-  /** Runs the statement now. Rows come back as plain objects, as D1 returns them. */
+  /** Runs the statement now. Rows come back as plain objects. */
   execute(): { results: Row[]; meta: Meta } {
     const started = performance.now();
-    const statement: StatementSync = this.db.prepare(this.sql);
+    const statement = this.db.prepare(this.sql);
     let results: Row[] = [];
     let changes: number;
     let lastRowId: number;
@@ -57,17 +52,7 @@ class Statement {
       changes = Number(outcome.changes);
       lastRowId = Number(outcome.lastInsertRowid);
     }
-    const meta: Meta = {
-      changes,
-      last_row_id: lastRowId,
-      rows_read: results.length,
-      rows_written: changes,
-      duration: performance.now() - started,
-      changed_db: changes > 0,
-      size_after: 0,
-      served_by: "node-sqlite",
-    };
-    return { results, meta };
+    return { results, meta: { changes, last_row_id: lastRowId, duration: performance.now() - started } };
   }
 
   private totalChanges() {
@@ -78,7 +63,7 @@ class Statement {
     const row = this.execute().results[0];
     if (!row) return null;
     if (column === undefined) return row as T;
-    if (!(column in row)) throw new Error(`D1_COLUMN_NOTFOUND: Column not found (${column})`);
+    if (!(column in row)) throw new Error(`Column not found (${column})`);
     return row[column] as T;
   }
 
@@ -99,15 +84,17 @@ class Statement {
   }
 }
 
-/** The subset of Cloudflare's D1Database API that Notivo and Better Auth use. */
-export class NodeD1 {
+/** Async prepare/bind/batch access to SQLite. Notivo was first written for
+ * Cloudflare D1 and keeps its API shape, which Better Auth also recognises
+ * (it detects prepare, batch and exec) and uses for its tables. */
+export class Database {
   constructor(readonly sqlite: DatabaseSync) {}
 
   prepare(sql: string) {
     return new Statement(this.sqlite, sql);
   }
 
-  /** Like D1, every statement in a batch commits together or not at all. */
+  /** Every statement in a batch commits together or not at all. */
   async batch(statements: Statement[]) {
     this.sqlite.exec("BEGIN IMMEDIATE");
     try {
@@ -128,14 +115,4 @@ export class NodeD1 {
     this.sqlite.exec(sql);
     return { count: sql.split(";").filter((s) => s.trim()).length, duration: performance.now() - started };
   }
-
-  async dump(): Promise<ArrayBuffer> {
-    throw new Error("dump() is not supported");
-  }
-
-  withSession() {
-    return this;
-  }
 }
-
-export const asD1 = (db: DatabaseSync) => new NodeD1(db) as unknown as D1Database;

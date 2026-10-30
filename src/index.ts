@@ -249,11 +249,12 @@ export default {
       console.error(
         JSON.stringify({ event: "admin_error", message: errorMessage(error) }),
       );
-      return json({ error: "Operation failed; inspect the Worker logs" }, 500);
+      return json({ error: "Operation failed; inspect the server logs" }, 500);
     }
   },
 
-  async scheduled(_controller: ScheduledController, env: Env): Promise<void> {
+  /** Called every minute by the server; the monitor decides when a check is due. */
+  async scheduled(env: Env): Promise<void> {
     const result = await runScheduledCycle(env);
     if (
       !result.skipped &&
@@ -265,4 +266,4 @@ export default {
       );
     }
   },
-} satisfies ExportedHandler<Env>;
+};

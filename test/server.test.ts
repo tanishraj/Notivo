@@ -1,26 +1,23 @@
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { asD1, openDatabase } from "../../server/d1";
-import { sendResponse, staticAssets, toRequest } from "../../server/http";
-import { applyMigrations, importExport } from "../../server/migrate";
-import { runCycle } from "../../src/monitor";
-import { status } from "../../src/store";
-import { listing, now, settings, site } from "../helpers";
+import { sendResponse, staticAssets, toRequest } from "../server/http";
+import { applyMigrations } from "../server/migrate";
+import { Database, openDatabase } from "../src/db";
+import { MIGRATIONS } from "./env";
 
-const MIGRATIONS = join(import.meta.dirname, "../../migrations");
 const migrated = () => {
   const sqlite = openDatabase(":memory:");
   applyMigrations(sqlite, MIGRATIONS);
   return sqlite;
 };
 
-describe("SQLite in place of D1", () => {
-  it("returns rows, single values and change counts as D1 does", async () => {
-    const db = asD1(migrated());
+describe("database", () => {
+  it("returns rows, single values and change counts", async () => {
+    const db = new Database(migrated());
     await db.prepare("INSERT INTO notices (id, title, fingerprint, first_seen_at, last_seen_at) VALUES (?, ?, 'f', ?, ?)")
       .bind("1", "First", "2026-10-24", "2026-10-24").run();
     expect(await db.prepare("SELECT id, title FROM notices").first()).toEqual({ id: "1", title: "First" });
@@ -33,47 +30,32 @@ describe("SQLite in place of D1", () => {
   });
 
   it("rolls back the whole batch when one statement fails", async () => {
-    const db = asD1(migrated());
+    const db = new Database(migrated());
     const insert = (id: string) =>
       db.prepare("INSERT INTO notices (id, title, fingerprint, first_seen_at, last_seen_at) VALUES (?, 't', 'f', 'd', 'd')").bind(id);
     await expect(db.batch([insert("1"), insert("1")])).rejects.toThrow(/UNIQUE/);
     expect(await db.prepare("SELECT COUNT(*) AS n FROM notices").first("n")).toBe(0);
   });
 
-  it("enforces foreign keys, as D1 does", async () => {
-    const db = asD1(migrated());
+  it("enforces foreign keys", async () => {
+    const db = new Database(migrated());
     await expect(
       db.prepare("INSERT INTO notice_versions (id, notice_id, kind, title, detected_at) VALUES ('v', 'missing', 'new', 't', 'd')").run(),
     ).rejects.toThrow(/FOREIGN KEY/);
   });
 
-  it("rejects values D1 cannot store", async () => {
-    const db = asD1(migrated());
-    expect(() => db.prepare("SELECT ?").bind(undefined)).toThrow(/D1_TYPE_ERROR/);
+  it("rejects values SQLite cannot store", async () => {
+    const db = new Database(migrated());
+    expect(() => db.prepare("SELECT ?").bind(undefined)).toThrow(/cannot be stored/);
     expect(await db.prepare("SELECT ? AS on_").bind(true).first("on_")).toBe(1);
   });
 });
 
-describe("migrations and import", () => {
+describe("migrations", () => {
   it("applies each migration once", () => {
     const sqlite = openDatabase(":memory:");
     expect(applyMigrations(sqlite, MIGRATIONS)).toHaveLength(11);
     expect(applyMigrations(sqlite, MIGRATIONS)).toEqual([]);
-  });
-
-  it("loads a Cloudflare D1 export with its history and runs on it", async () => {
-    const sqlite = openDatabase(":memory:");
-    importExport(sqlite, readFileSync(join(import.meta.dirname, "../fixtures/d1-export.sql"), "utf8"));
-    expect(applyMigrations(sqlite, MIGRATIONS)).toEqual([]);
-    const env = settings({ DB: asD1(sqlite) });
-    expect((await status(env)).counts).toEqual({ notices: 1, removed: 0 });
-    // The imported notice is known, so only the genuinely new one is emailed.
-    const result = await runCycle(env, site(listing(["48", "49"])), now);
-    expect(result).toMatchObject({ scan: { notifications: 1 } });
-  });
-
-  it("refuses to import over an existing database", () => {
-    expect(() => importExport(migrated(), "SELECT 1")).toThrow(/not empty/);
   });
 });
 
@@ -91,10 +73,10 @@ describe("HTTP behind Coolify's proxy", () => {
     let seen: Request | undefined;
     const base = await serve(async (request) => ((seen = request), new Response("ok")));
     await fetch(`${base}/admin/status`, {
-      headers: { "X-Forwarded-Proto": "https", "X-Real-Ip": "203.0.113.9", "CF-Connecting-IP": "198.51.100.1" },
+      headers: { "X-Forwarded-Proto": "https", "X-Real-Ip": "203.0.113.9", "X-Client-Ip": "198.51.100.1" },
     });
     expect(new URL(seen!.url).protocol).toBe("https:");
-    expect(seen!.headers.get("cf-connecting-ip")).toBe("203.0.113.9");
+    expect(seen!.headers.get("x-client-ip")).toBe("203.0.113.9");
   });
 
   it("passes request bodies through and keeps every cookie", async () => {

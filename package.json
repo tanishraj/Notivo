@@ -8,31 +8,23 @@
   },
   "scripts": {
     "predev": "node scripts/prepare-local-secrets.mjs",
-    "dev": "wrangler dev",
-    "db:migrate:local": "wrangler d1 migrations apply nmc-notices --local",
-    "db:migrate:remote": "wrangler d1 migrations apply nmc-notices --remote",
-    "db:migrate:production": "wrangler d1 migrations apply nmc-notices --remote --env production",
+    "dev": "npm run build && node --env-file-if-exists=.dev.vars build/server.mjs",
     "typecheck": "tsc --noEmit && tsc -p portal/tsconfig.json",
     "build:portal": "vite build --config portal/vite.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build": "wrangler deploy --dry-run --outdir dist",
+    "build": "npm run build:portal && npm run build:server",
     "build:server": "esbuild server/main.ts --bundle --platform=node --format=esm --target=node24 --external:html-rewriter-wasm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=build/server.mjs",
     "start": "node build/server.mjs",
     "scan:trivy": "docker run --rm -v \"$PWD\":/src:ro -v notivo-trivy-cache:/root/.cache aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c fs --config /src/trivy.yaml /src",
     "scan:image": "docker build -t notivo:scan . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v \"$PWD/trivy.yaml\":/trivy.yaml:ro -v notivo-trivy-cache:/root/.cache aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image --config /trivy.yaml --scanners vuln,secret notivo:scan",
-    "deploy": "wrangler deploy",
-    "deploy:production": "wrangler deploy --env production",
     "admin": "node scripts/admin.mjs",
     "email:preview": "node scripts/admin.mjs preview --html"
   },
   "overrides": {
-    "undici": "^7.30.1",
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "@cloudflare/vitest-plugin": "^1.4.7",
-    "@cloudflare/workers-types": "^5.20261024.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
@@ -42,8 +34,7 @@
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2",
     "vite": "^8.3.5",
-    "vitest": "^5.0.5",
-    "wrangler": "^4.152.0"
+    "vitest": "^5.0.5"
   },
   "dependencies": {
     "better-auth": "^1.7.12",

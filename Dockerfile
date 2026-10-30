@@ -1,4 +1,4 @@
-# Notivo on a plain server (for example with Coolify), without Cloudflare.
+# Notivo as one container (deployed with Coolify).
 # The database lives in /data; mount a persistent volume there.
 FROM node:24-alpine AS build
 WORKDIR /app

@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import worker from "../src/index";
+import app from "../src/index";
 import { runCycle } from "../src/monitor";
 import { manualEmailReview, retryFailedEmail, sendNoticeManually } from "../src/manual-email";
 import { sendPending } from "../src/email";
@@ -10,7 +10,7 @@ beforeAll(migrate);
 beforeEach(reset);
 const origin = "https://monitor.example";
 function request(config: Env, path: string, init: RequestInit = {}) {
-  return worker.fetch(new Request(`${origin}/admin/${path}`, {
+  return app.fetch(new Request(`${origin}/admin/${path}`, {
     ...init, headers: { Authorization: `Bearer ${config.ADMIN_TOKEN}`, ...init.headers },
   }), config);
 }
@@ -95,7 +95,7 @@ describe("email queue and review views", () => {
     const config = await setup();
     const row = (await list(config, "view=queue")).items[0]!;
     const path = `emails/automatic/${row.id}/dismiss`;
-    expect((await worker.fetch(new Request(`${origin}/admin/${path}`, { method: "POST" }), config)).status).toBe(401);
+    expect((await app.fetch(new Request(`${origin}/admin/${path}`, { method: "POST" }), config)).status).toBe(401);
     expect((await request(config, path, { method: "POST", headers: { Origin: "https://other.example" } })).status).toBe(403);
     expect((await request(config, path, { method: "POST" })).status).toBe(400);
     expect((await request(config, `emails/automatic/${"0".repeat(64)}/dismiss`, { method: "POST" })).status).toBe(404);
@@ -116,7 +116,7 @@ describe("explicit failed-email retries", () => {
   it("uses the corrected sender and original recipient, preserving history and preventing duplicate retries", async () => {
     const { config, original } = await failedAttempt();
     const key = crypto.randomUUID();
-    const network = vi.fn(async (_url: RequestInfo | URL, init?: RequestInit) => {
+    const network = vi.fn(async (_url: Parameters<typeof fetch>[0], init?: RequestInit) => {
       const payload = JSON.parse(String(init?.body));
       expect(payload.from).toBe("nmc_notice@snmih.in");
       expect(payload.to).toEqual([original.recipient]);
@@ -161,7 +161,7 @@ describe("explicit failed-email retries", () => {
   it("protects retry actions and blocks unsafe or disabled attempts before sending", async () => {
     const { config, original } = await failedAttempt();
     const path = `emails/automatic/${original.delivery_id}/retry`;
-    expect((await worker.fetch(new Request(`${origin}/admin/${path}`, { method: "POST" }), config)).status).toBe(401);
+    expect((await app.fetch(new Request(`${origin}/admin/${path}`, { method: "POST" }), config)).status).toBe(401);
     expect((await request(config, path, { method: "POST", headers: { Origin: "https://other.example" } })).status).toBe(403);
     const fail = vi.fn(async () => { throw new Error("Must not send"); });
     await expect(retryFailedEmail(config, "automatic", original.delivery_id, "invalid", fail, now)).rejects.toThrow("UUID");

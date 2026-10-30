@@ -2,8 +2,8 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 
-/** Apply migrations/*.sql that are not yet recorded, using Wrangler's own table,
- * so a database exported from Cloudflare D1 keeps its migration history. */
+/** Apply migrations/*.sql that are not yet recorded. The `d1_migrations` table
+ * name dates from Cloudflare D1; existing databases record their history there. */
 export function applyMigrations(db: DatabaseSync, dir: string) {
   db.exec(`CREATE TABLE IF NOT EXISTS d1_migrations(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -26,18 +26,4 @@ export function applyMigrations(db: DatabaseSync, dir: string) {
     applied.push(name);
   }
   return applied;
-}
-
-/** Load a `wrangler d1 export` file into an empty database. */
-export function importExport(db: DatabaseSync, sql: string) {
-  const tables = db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'").get()!.n;
-  if (Number(tables) > 0) throw new Error("The database is not empty; import only into a new database file");
-  db.exec("BEGIN IMMEDIATE");
-  try {
-    db.exec(sql);
-    db.exec("COMMIT");
-  } catch (error) {
-    db.exec("ROLLBACK");
-    throw error;
-  }
 }
