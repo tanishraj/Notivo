@@ -1,6 +1,8 @@
 export interface Env {
   DB: D1Database;
   ASSETS?: { fetch(request: Request): Promise<Response> };
+  /** Set by the self-hosted server (server/main.ts); unset on Cloudflare. */
+  PLATFORM?: "node";
   ADMIN_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;
   SETTINGS_ENCRYPTION_KEY?: string;

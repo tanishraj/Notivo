@@ -124,7 +124,7 @@ export function Login({ onLogin }: { onLogin: () => void }) {
             <CircleAlert size={18} />
             <span>
               {!info.ready
-                ? "Authentication needs a server secret. Locally, restart npm run dev to initialize it. On Cloudflare, set BETTER_AUTH_SECRET."
+                ? "Authentication needs a server secret. Locally, restart npm run dev to initialize it. On the server, set BETTER_AUTH_SECRET."
                 : "Set ADMIN_TOKEN on the server to protect the initial account setup."}
             </span>
           </div>

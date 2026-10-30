@@ -44,6 +44,7 @@ interface SettingsData {
   resendConfigured: boolean;
   resendSource: string;
   encryptionReady: boolean;
+  storage: string;
 }
 
 function Feedback({ error, success }: { error?: string; success?: string }) {
@@ -303,7 +304,7 @@ export function Settings({
                 />
                 <p id="key-help">
                   {saved.encryptionReady
-                    ? `New keys are encrypted in D1 and never shown again.${saved.resendSource === "environment" ? " The current key comes from the server environment." : ""}`
+                    ? `New keys are encrypted in the database and never shown again.${saved.resendSource === "environment" ? " The current key comes from the server environment." : ""}`
                     : "Set SETTINGS_ENCRYPTION_KEY on the server to enable encrypted key storage."}
                 </p>
                 {saved.resendConfigured ? (
@@ -422,7 +423,7 @@ export function Settings({
                   </SelectContent>
                 </Select>
                 <p id="interval-help">
-                  NMC scans follow this interval. Cloudflare wakes every minute
+                  NMC scans follow this interval. Notivo wakes every minute
                   to send due queued emails independently of scans.
                 </p>
               </div>
@@ -562,7 +563,7 @@ export function Settings({
           Your preferences.
         </h2>
         <p>
-          These settings are saved in Cloudflare D1 and apply to future checks
+          These settings are saved in the database and apply to future checks
           and sends. Your credentials stay private.
         </p>
         <dl>
@@ -572,7 +573,7 @@ export function Settings({
           </div>
           <div>
             <dt>Storage</dt>
-            <dd>Cloudflare D1</dd>
+            <dd>{saved?.storage ?? "…"}</dd>
           </div>
           <div>
             <dt>Email provider</dt>

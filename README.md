@@ -2,7 +2,7 @@
 
 **Important updates, delivered.**
 
-The repository’s default development branch is `develop`.
+The repository’s default development branch is `develop`. Changes for the self-hosted installation go to `stage`: Coolify deploys every push to `stage` to [notivo.snmih.in](https://notivo.snmih.in).
 
 Notivo monitors public notices and delivers email updates with links to their original documents. Its first source is the [National Medical Commission’s What’s New listing](https://nmc.org.in/whats-new).
 
@@ -213,7 +213,7 @@ Cron runs every minute (`* * * * *`), independent of the dashboard scan interval
 
 ## Self-hosting (Coolify or any Docker host)
 
-The same code also runs as one Node.js container, with no Cloudflare account. `server/` supplies what Cloudflare provided: SQLite (Node's built-in `node:sqlite`) in place of D1, the lol-html engine in place of HTMLRewriter, a one-minute timer in place of the cron trigger, and static files for the portal. Migrations apply automatically on start. The container needs about 40 MB of memory and 250 MB of disk.
+This installation runs this way at [notivo.snmih.in](https://notivo.snmih.in), deployed by Coolify from the `stage` branch; its Settings page shows the storage as “SQLite on this server”. The same code runs as one Node.js container, with no Cloudflare account. `server/` supplies what Cloudflare provided: SQLite (Node's built-in `node:sqlite`) in place of D1, the lol-html engine in place of HTMLRewriter, a one-minute timer in place of the cron trigger, and static files for the portal. Migrations apply automatically on start. The container needs about 40 MB of memory and 250 MB of disk.
 
 In Coolify, create an application from this repository using the **Dockerfile** build pack, then set:
 
@@ -332,6 +332,23 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 - Documents remain hosted by NMC. Their availability and content can change at the source.
 
 Use an external uptime monitor against `/health` for scan failure alerts. The detailed delivery counters and problem records are available through authenticated status and Worker logs.
+
+## Security checks
+
+The **Checks** GitHub workflow runs on every push and pull request to `stage`, and weekly:
+
+- **Typecheck and test**: the full test suite.
+- **CodeQL**: GitHub code scanning with the `security-extended` queries, for the TypeScript code and the workflows themselves. Findings appear under the repository's **Security → Code scanning** tab.
+- **Trivy**: dependency vulnerabilities, committed secrets and Dockerfile misconfigurations in the source, then vulnerabilities and secrets in the built Docker image. HIGH or CRITICAL findings that have a fix fail the check.
+
+Run the Trivy scans locally with Docker (no install needed):
+
+```sh
+npm run scan:trivy   # source: package-lock.json, secrets, Dockerfile
+npm run scan:image   # builds the image, then scans it
+```
+
+Both use the official Trivy image pinned by digest and the settings in `trivy.yaml`. Trivy's GitHub Action and some release tags were compromised in March 2026, so the workflow runs this pinned image instead, and every action is pinned to a commit. The runtime image leaves out npm, which the server does not use, because npm's bundled packages were the only image findings.
 
 ## Validation
 
