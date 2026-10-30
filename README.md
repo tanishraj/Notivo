@@ -211,6 +211,31 @@ Production enables `keep_vars` to preserve dashboard-managed variables across de
 
 Cron runs every minute (`* * * * *`), independent of the dashboard scan interval. The schedule is defined in UTC. Store dates and timestamps in UTC.
 
+## Self-hosting (Coolify or any Docker host)
+
+The same code also runs as one Node.js container, with no Cloudflare account. `server/` supplies what Cloudflare provided: SQLite (Node's built-in `node:sqlite`) in place of D1, the lol-html engine in place of HTMLRewriter, a one-minute timer in place of the cron trigger, and static files for the portal. Migrations apply automatically on start. The container needs about 40 MB of memory and 250 MB of disk.
+
+In Coolify, create an application from this repository using the **Dockerfile** build pack, then set:
+
+| Setting | Value |
+| --- | --- |
+| Branch | `stage` |
+| Port | `3000` |
+| Persistent storage | a volume mounted at `/data` (the database is `/data/notivo.db`) |
+| Health check | Dockerfile `HEALTHCHECK` (checks the portal responds) |
+| Replicas | exactly 1: two copies would scan and email twice |
+
+Environment variables are the same as the Worker's: `ADMIN_TOKEN`, `BETTER_AUTH_SECRET`, `SETTINGS_ENCRYPTION_KEY`, `PORTAL_URL`, and optionally `EMAIL_TO`, `EMAIL_FROM`, `RESEND_API_KEY` and the settings under Configuration. Reuse the production `SETTINGS_ENCRYPTION_KEY` from `.dev.vars.production` so the encrypted Resend key saved in the portal still decrypts. Use `/health` for an external uptime monitor; it reports scan failures, so it is not used as the container health check.
+
+To move an existing Cloudflare installation without losing history or sending duplicates:
+
+1. In the Cloudflare portal's Settings, pause monitoring.
+2. Export the database: `npx wrangler d1 export nmc-notices --remote --env production --output notivo.sql`.
+3. Copy it into the container's volume as `/data/import.sql` and restart. On start, the server loads it into a new database, keeps the previous database beside it as `notivo.db.before-import-<time>`, and renames the file to `import.sql.imported-<time>`. The export carries Wrangler's migration history, so only newer migrations run.
+4. Sign in to the new portal with your existing account, check the history, then resume monitoring in Settings there. Leave the Cloudflare Worker paused.
+
+To run the container elsewhere: `docker build -t notivo . && docker run -p 3000:3000 -v notivo-data:/data --env-file .env notivo`.
+
 ## Configuration
 
 | Setting | Default | Purpose |
@@ -318,7 +343,7 @@ npm run build
 
 Apply all pending migrations before running this version against an existing database. Migrations 0005–0007 add manual delivery auditing, reversible dismissal markers, retry links, and activity views without rewriting notice history or automatic delivery records.
 
-Tests use local D1 and mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
+`npm test` runs the suite twice: in the Workers runtime against local D1, and in Node against SQLite as the self-hosted server runs it. Only the rows-read check is Workers-only, because only D1 reports that number. Tests use mocked outbound requests; they never send email. Tests cover password setup/login, closed registration, password changes, session revocation, owner recovery, rate limiting, cross-origin protection, encrypted settings, stale-save conflicts, runtime scheduling settings, pagination, search, filters, and scan-only behavior. HTML fixtures were captured from the public first and last NMC listing pages, including real archive edge cases. `build` compiles the portal to `portal/dist/`, then performs a Worker dry run into `dist/` without deploying.
 
 Development dependency overrides keep `undici` and `zod` on compatible patched releases. The lockfile records the tested versions.
 
