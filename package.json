@@ -19,11 +19,12 @@
     "build": "wrangler deploy --dry-run --outdir dist",
     "build:server": "esbuild server/main.ts --bundle --platform=node --format=esm --target=node24 --external:html-rewriter-wasm --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\" --outfile=build/server.mjs",
     "start": "node build/server.mjs",
+    "scan:trivy": "docker run --rm -v \"$PWD\":/src:ro -v notivo-trivy-cache:/root/.cache aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c fs --config /src/trivy.yaml /src",
+    "scan:image": "docker build -t notivo:scan . && docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v \"$PWD/trivy.yaml\":/trivy.yaml:ro -v notivo-trivy-cache:/root/.cache aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c image --config /trivy.yaml --scanners vuln,secret notivo:scan",
     "deploy": "wrangler deploy",
     "deploy:production": "wrangler deploy --env production",
     "admin": "node scripts/admin.mjs",
-    "email:preview": "node scripts/admin.mjs preview --html",
-    "email:preview:grouped": "node scripts/grouped-email-preview.mjs"
+    "email:preview": "node scripts/admin.mjs preview --html"
   },
   "overrides": {
     "undici": "^7.30.1",

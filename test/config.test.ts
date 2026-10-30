@@ -93,6 +93,11 @@ describe("dashboard settings", () => {
     expect((await effectiveEnv(config)).RESEND_API_KEY).toBe("");
   });
 
+  it("names the storage the settings page shows for each platform", async () => {
+    expect((await settingsView(settings())).storage).toBe("Cloudflare D1");
+    expect((await settingsView(settings({ PLATFORM: "node" }))).storage).toBe("SQLite on this server");
+  });
+
   it("validates settings atomically and rejects stale saves", async () => {
     const config = settings({ RESEND_API_KEY: "" });
     for (const values of [

@@ -55,6 +55,7 @@ const env: Env = {
   ...Object.fromEntries(KEYS.flatMap((key) => (process.env[key] ? [[key, process.env[key]]] : []))),
   DB: asD1(sqlite),
   ASSETS: staticAssets(join(app, "portal/dist")),
+  PLATFORM: "node",
 };
 
 const server = createServer(async (incoming, outgoing) => {
