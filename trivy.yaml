@@ -5,6 +5,6 @@ vulnerability:
   ignore-unfixed: true
 scan:
   scanners: [vuln, secret, misconfig]
-  skip-dirs: [node_modules, .wrangler, dist, build, data, output, designs, tmp, coverage, portal/dist]
+  skip-dirs: [node_modules, build, data, output, tmp, coverage, portal/dist]
   # Local secret files are gitignored and never committed.
   skip-files: [.dev.vars, .dev.vars.*, .env, .env.*]

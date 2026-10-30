@@ -1,4 +1,5 @@
 node_modules/
+# Left over from the Cloudflare setup; safe to delete locally.
 .wrangler/
 dist/
 build/

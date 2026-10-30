@@ -1,4 +1,4 @@
-import { env } from 'cloudflare:test';
+import { env } from './env';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { renderEmail, sendPending, sendTestEmail, testEmailPayload } from '../src/email';
 import { runCycle, runScheduledCycle } from '../src/monitor';
@@ -142,7 +142,7 @@ describe('Resend delivery', () => {
 
   it('reuses the identical body and key after an ambiguous timeout', async () => {
     const config = await queue();
-    const calls: { key: string | null; body: BodyInit | null | undefined }[] = [];
+    const calls: { key: string | null; body: RequestInit["body"] }[] = [];
     const fetcher: Fetcher = async (_url, init) => {
       calls.push({ key: new Headers(init?.headers).get('Idempotency-Key'), body: init?.body });
       if (calls.length === 1) throw new Error('Connection closed after server accepted request');

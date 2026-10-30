@@ -1,4 +1,5 @@
 import { ageInDays, decideNewNotices, indiaToday } from "./classify";
+import type { Database, Statement } from "./db";
 import {
   intSetting,
   recipients,
@@ -9,17 +10,17 @@ import {
   type Version,
 } from "./types";
 
-export async function getState(db: D1Database): Promise<State> {
+export async function getState(db: Database): Promise<State> {
   const state = await db
     .prepare("SELECT * FROM monitor_state WHERE id = 1")
     .first<State>();
   if (!state)
-    throw new Error("Database is not initialized; apply the D1 migrations");
+    throw new Error("Database is not initialized; restart the server to apply migrations");
   return state;
 }
 
 export async function acquireLease(
-  db: D1Database,
+  db: Database,
   owner: string,
   now: Date,
 ): Promise<boolean> {
@@ -38,7 +39,7 @@ export async function acquireLease(
 }
 
 export async function releaseLease(
-  db: D1Database,
+  db: Database,
   owner: string,
 ): Promise<void> {
   await db
@@ -52,7 +53,7 @@ export async function releaseLease(
 /** Stored notices that share an ID or a fallback ID with the scanned rows, or
  * have the same title and published date. */
 export function findStoredMatches<T>(
-  db: D1Database,
+  db: Database,
   incoming: { id: string; fallback_id: string; title: string; published_on: string | null }[],
 ) {
   return db
@@ -79,7 +80,7 @@ export async function ingest(
   notices: Notice[],
   baseline: boolean,
   now: Date,
-  stateUpdate: D1PreparedStatement,
+  stateUpdate: Statement,
 ): Promise<number> {
   const timestamp = now.toISOString();
   const unique = [...new Map(notices.map((n) => [n.id, n])).values()];
@@ -225,7 +226,7 @@ export async function ingest(
       });
     }
   }
-  // json_each keeps the number of D1 queries bounded, including a 20-row page.
+  // json_each keeps the number of queries bounded, including a 20-row page.
   const statements = [
     env.DB.prepare(
       `INSERT INTO notices

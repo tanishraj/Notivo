@@ -1,7 +1,7 @@
 import { HTMLRewriter as Engine, type ElementHandlers } from "html-rewriter-wasm";
 
-/** Cloudflare's HTMLRewriter for Node. It runs the same lol-html engine, compiled
- * to WebAssembly, behind the `.on(...).transform(response)` interface. */
+/** A streaming HTML parser with an `.on(selector, handlers).transform(response)`
+ * interface, running the lol-html engine compiled to WebAssembly. */
 export class HTMLRewriter {
   readonly #handlers: [string, ElementHandlers][] = [];
 
@@ -30,9 +30,4 @@ export class HTMLRewriter {
     });
     return new Response(body, { status: response.status, statusText: response.statusText, headers: response.headers });
   }
-}
-
-/** Make `HTMLRewriter` global, as it is on Cloudflare. */
-export function installHTMLRewriter() {
-  (globalThis as { HTMLRewriter?: unknown }).HTMLRewriter ??= HTMLRewriter;
 }

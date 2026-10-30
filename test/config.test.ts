@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import worker from "../src/index";
+import app from "../src/index";
 import { effectiveEnv, settingsView } from "../src/config";
 import { runCycle, runScheduledCycle } from "../src/monitor";
 import { listing, migrate, now, reset, settings, site } from "./helpers";
@@ -14,7 +14,7 @@ async function save(
   extra: Record<string, unknown> = {},
 ) {
   const current = await settingsView(config);
-  return worker.fetch(
+  return app.fetch(
     new Request(`${origin}/admin/settings`, {
       method: "PUT",
       headers: {
@@ -91,11 +91,6 @@ describe("dashboard settings", () => {
     expect((await effectiveEnv(config)).RESEND_API_KEY).toBe(key);
     expect((await save(config, {}, { clearResendKey: true })).status).toBe(200);
     expect((await effectiveEnv(config)).RESEND_API_KEY).toBe("");
-  });
-
-  it("names the storage the settings page shows for each platform", async () => {
-    expect((await settingsView(settings())).storage).toBe("Cloudflare D1");
-    expect((await settingsView(settings({ PLATFORM: "node" }))).storage).toBe("SQLite on this server");
   });
 
   it("validates settings atomically and rejects stale saves", async () => {
@@ -187,7 +182,7 @@ describe("dashboard settings", () => {
         new Date().toISOString(),
       )
       .run();
-    const health = () => worker.fetch(new Request(`${origin}/health`), config);
+    const health = () => app.fetch(new Request(`${origin}/health`), config);
     expect((await health()).status).toBe(503);
     await save(config, { CHECK_INTERVAL_MINUTES: "120" });
     expect((await health()).status).toBe(200);

@@ -139,7 +139,6 @@ export async function settingsView(env: Env) {
     encryptionReady: /^[a-fA-F0-9]{64}$/.test(
       env.SETTINGS_ENCRYPTION_KEY ?? "",
     ),
-    storage: env.PLATFORM === "node" ? "SQLite on this server" : "Cloudflare D1",
   };
 }
 

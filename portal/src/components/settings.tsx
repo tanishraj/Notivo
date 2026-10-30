@@ -44,7 +44,6 @@ interface SettingsData {
   resendConfigured: boolean;
   resendSource: string;
   encryptionReady: boolean;
-  storage: string;
 }
 
 function Feedback({ error, success }: { error?: string; success?: string }) {
@@ -573,7 +572,7 @@ export function Settings({
           </div>
           <div>
             <dt>Storage</dt>
-            <dd>{saved?.storage ?? "…"}</dd>
+            <dd>SQLite on this server</dd>
           </div>
           <div>
             <dt>Email provider</dt>
