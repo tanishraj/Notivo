@@ -1,0 +1,15 @@
+.git
+node_modules
+.wrangler
+dist
+build
+data
+portal/dist
+output
+designs
+tmp
+coverage
+test
+.dev.vars*
+.env*
+*.log
