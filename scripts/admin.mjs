@@ -1,12 +1,10 @@
 // Credentials come from the environment, never command-line arguments or URLs.
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync } from 'node:fs';
 import { randomUUID } from 'node:crypto';
-import { resolve } from 'node:path';
 async function main() {
   if (existsSync('.dev.vars')) process.loadEnvFile('.dev.vars');
   const action = process.argv[2] ?? 'status';
   const dryRun = process.argv.includes('--dry-run');
-  const htmlPreview = process.argv.includes('--html');
   const requestId = randomUUID();
   const base = new URL(process.env.MONITOR_URL ?? 'http://localhost:3000');
   const token = process.env.ADMIN_TOKEN;
@@ -15,9 +13,8 @@ async function main() {
     throw new Error('Use HTTPS for remote monitor URLs');
   }
   if (!['status', 'run', 'send', 'preview', 'baseline', 'test-email', 'reset-login'].includes(action) ||
-      process.argv.slice(3).some((arg) => !['--dry-run', '--html'].includes(arg)) ||
-      (dryRun && action !== 'test-email') || (htmlPreview && action !== 'preview')) {
-    throw new Error('Usage: npm run admin -- status|run|send|preview [--html]|baseline|test-email [--dry-run]|reset-login');
+      process.argv.slice(3).some((arg) => arg !== '--dry-run') || (dryRun && action !== 'test-email')) {
+    throw new Error('Usage: npm run admin -- status|run|send|preview|baseline|test-email [--dry-run]|reset-login');
   }
   async function request(path, method = 'GET') {
     let response;
@@ -55,13 +52,7 @@ async function main() {
     const path = action === 'preview' ? '/admin/preview?format=json' : action === 'reset-login' ? '/admin/account' : `/admin/${action}`;
     const sendsTest = action === 'test-email' && !dryRun;
     const result = await request(path, action === 'reset-login' ? 'DELETE' : ['run', 'send'].includes(action) || sendsTest ? 'POST' : 'GET');
-    if (htmlPreview) {
-      if (typeof result.html !== 'string') throw new Error('The server returned no email HTML');
-      mkdirSync('build', { recursive: true });
-      const file = resolve('build/email-preview.html');
-      writeFileSync(file, result.html);
-      console.log(`Email preview saved to ${file}\nOpen this file in your browser. No email was sent.`);
-    } else console.log(JSON.stringify(result, null, 2));
+    console.log(JSON.stringify(result, null, 2));
   }
 }
 

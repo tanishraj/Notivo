@@ -3,7 +3,7 @@ import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { renderEmail, sendPending, sendTestEmail, testEmailPayload } from '../src/email';
 import { runCycle, runScheduledCycle } from '../src/monitor';
 import { listing, migrate, now, reset, settings, site } from './helpers';
-import type { Env, Fetcher, MailPayload } from '../src/types';
+import { RESEND_URL, type Env, type Fetcher, type MailPayload } from '../src/types';
 
 beforeAll(migrate);
 beforeEach(reset);
@@ -181,7 +181,7 @@ describe('Resend delivery', () => {
 
   it('retries queued emails even when the next website scan fails', async () => {
     const config = await queue();
-    const fetcher: Fetcher = async (url) => String(url).startsWith('https://api.resend.com')
+    const fetcher: Fetcher = async (url) => String(url) === RESEND_URL
       ? Response.json({ id: 'accepted-during-outage' })
       : new Response('Maintenance', { headers: { 'Content-Type': 'text/html' } });
     const result = await runCycle(config, fetcher, now);
