@@ -2,7 +2,7 @@
 
 **Important updates, delivered.**
 
-The repository’s default development branch is `develop`. Changes for the self-hosted installation go to `stage`: Coolify deploys every push to `stage` to [notivo.snmih.in](https://notivo.snmih.in).
+The repository’s default branch is `develop`, which is also production: Coolify deploys every push to `develop` to [notivo.snmih.in](https://notivo.snmih.in). Make changes on a feature branch and merge them into `develop` through a pull request.
 
 Notivo monitors public notices and delivers email updates with links to their original documents. Its first source is the [National Medical Commission’s What’s New listing](https://nmc.org.in/whats-new).
 
@@ -141,11 +141,11 @@ After baseline, every run reads the latest three pages. When an archive audit is
 
 ## Deployment (Coolify)
 
-Production runs at [notivo.snmih.in](https://notivo.snmih.in). Coolify builds the `Dockerfile` and redeploys on every push to `stage`. The container needs about 40 MB of memory and 250 MB of disk.
+Production runs at [notivo.snmih.in](https://notivo.snmih.in). Coolify builds the `Dockerfile` and redeploys on every push to `develop`. The container needs about 40 MB of memory and 250 MB of disk.
 
 | Coolify setting | Value |
 | --- | --- |
-| Source | this repository, branch `stage`, through a GitHub App |
+| Source | this repository, branch `develop`, through a GitHub App |
 | Build pack | Dockerfile |
 | Port | `3000` |
 | Domain | `https://notivo.snmih.in` |
@@ -265,7 +265,7 @@ Use an external uptime monitor against `/health` for scan failure alerts. The de
 
 ## Security checks
 
-The **Checks** GitHub workflow runs on every push and pull request to `stage`, and weekly:
+The **Checks** GitHub workflow runs on every push and pull request to `develop`, and weekly:
 
 - **Typecheck and test**: the full test suite.
 - **CodeQL**: GitHub code scanning with the `security-extended` queries, for the TypeScript code and the workflows themselves. Findings appear under the repository's **Security → Code scanning** tab.

@@ -1,12 +1,12 @@
 name: Checks
 
-# Tests, CodeQL code scanning and Trivy for changes headed to stage, plus a
+# Tests, CodeQL code scanning and Trivy for changes headed to develop, plus a
 # weekly run so newly published vulnerabilities are caught without a push.
 on:
   push:
-    branches: [stage]
+    branches: [develop]
   pull_request:
-    branches: [stage]
+    branches: [develop]
   schedule:
     - cron: "23 3 * * 1"
   workflow_dispatch:
