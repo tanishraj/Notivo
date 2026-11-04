@@ -105,13 +105,7 @@ npm run admin -- run
 
 The admin script reads `.dev.vars`; exported environment variables take precedence. It uses `http://localhost:3000` unless `MONITOR_URL` is set. `preview` prints the HTML and plain-text email as JSON. It does not send anything. `run` scans and also drains eligible mail if email sending has been enabled. `send` only drains the outbox.
 
-To view the designed email in a browser instead of JSON, run:
-
-```sh
-npm run email:preview
-```
-
-Open the generated `build/email-preview.html` file in your browser. This is a local preview and does not send email. The selected **Minimal Letter (Option 2)** template uses a white background, navy text, a text-only “NMC Notice Updates” masthead, readable publication dates, and a direct link to the original NMC notice. The National Medical Commission is identified as the source; no institute logo or official emblem is used. Table-based markup, system fonts, inline baseline styles, and a narrow-screen layout support email rendering. New notices, updated notices, entries without a document, and explicitly labeled test emails share the same template.
+To view the designed email, open **Email preview** in the portal. It renders the latest stored notice in a sandboxed frame and does not send email. The selected **Minimal Letter (Option 2)** template uses a white background, navy text, a text-only “NMC Notice Updates” masthead, readable publication dates, and a direct link to the original NMC notice. The National Medical Commission is identified as the source; no institute logo or official emblem is used. Table-based markup, system fonts, inline baseline styles, and a narrow-screen layout support email rendering. New notices, updated notices, entries without a document, and explicitly labeled test emails share the same template.
 
 Admin commands need the server running: start `npm run dev` in another terminal first. If it uses another port, set `MONITOR_URL` to that address.
 

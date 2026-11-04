@@ -93,8 +93,9 @@ export async function bootstrapAdmin(env: Env, request: Request) {
   const data = await readJson(request);
   if (
     typeof data.email !== "string" ||
-    !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(data.email) ||
-    data.email.length > 254
+    data.email.length > 254 ||
+    // Domain labels exclude dots, so the pattern cannot backtrack.
+    !/^[^\s<>@]+@[^\s<>@.]+(?:\.[^\s<>@.]+)+$/.test(data.email)
   )
     throw new InputError("Enter a valid email address");
   if (
