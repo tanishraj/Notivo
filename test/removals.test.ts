@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "./env";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runCycle } from "../src/monitor";
 import { status } from "../src/store";

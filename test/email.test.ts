@@ -1,9 +1,9 @@
-import { env } from 'cloudflare:test';
+import { env } from './env';
 import { beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { renderEmail, sendPending, sendTestEmail, testEmailPayload } from '../src/email';
 import { runCycle, runScheduledCycle } from '../src/monitor';
 import { listing, migrate, now, reset, settings, site } from './helpers';
-import type { Env, Fetcher, MailPayload } from '../src/types';
+import { RESEND_URL, type Env, type Fetcher, type MailPayload } from '../src/types';
 
 beforeAll(migrate);
 beforeEach(reset);
@@ -142,7 +142,7 @@ describe('Resend delivery', () => {
 
   it('reuses the identical body and key after an ambiguous timeout', async () => {
     const config = await queue();
-    const calls: { key: string | null; body: BodyInit | null | undefined }[] = [];
+    const calls: { key: string | null; body: RequestInit["body"] }[] = [];
     const fetcher: Fetcher = async (_url, init) => {
       calls.push({ key: new Headers(init?.headers).get('Idempotency-Key'), body: init?.body });
       if (calls.length === 1) throw new Error('Connection closed after server accepted request');
@@ -181,7 +181,7 @@ describe('Resend delivery', () => {
 
   it('retries queued emails even when the next website scan fails', async () => {
     const config = await queue();
-    const fetcher: Fetcher = async (url) => String(url).startsWith('https://api.resend.com')
+    const fetcher: Fetcher = async (url) => String(url) === RESEND_URL
       ? Response.json({ id: 'accepted-during-outage' })
       : new Response('Maintenance', { headers: { 'Content-Type': 'text/html' } });
     const result = await runCycle(config, fetcher, now);

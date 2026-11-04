@@ -1,5 +1,7 @@
+import type { Database } from "./db";
+
 export interface Env {
-  DB: D1Database;
+  DB: Database;
   ASSETS?: { fetch(request: Request): Promise<Response> };
   ADMIN_TOKEN?: string;
   BETTER_AUTH_SECRET?: string;

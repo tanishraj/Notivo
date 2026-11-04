@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import worker from "../src/index";
+import app from "../src/index";
 import { manualEmailReview, sendNoticeManually } from "../src/manual-email";
 import { runCycle, runScheduledCycle } from "../src/monitor";
 import { sendPending } from "../src/email";
@@ -41,9 +41,9 @@ describe("manual archive email", () => {
     expect(await config.DB.prepare("SELECT COUNT(*) AS count FROM notice_versions").first()).toEqual({ count: 0 });
     expect(await config.DB.prepare("SELECT COUNT(*) AS count FROM outbox").first()).toEqual({ count: 0 });
     const headers = { Authorization: `Bearer ${config.ADMIN_TOKEN}` };
-    const archive = await worker.fetch(new Request("https://monitor.example/admin/notices", { headers }), config);
+    const archive = await app.fetch(new Request("https://monitor.example/admin/notices", { headers }), config);
     expect(await archive.json()).toMatchObject({ total: 1, items: [{ kind: "baseline", version_count: 0 }] });
-    const emails = await worker.fetch(new Request("https://monitor.example/admin/emails", { headers }), config);
+    const emails = await app.fetch(new Request("https://monitor.example/admin/emails", { headers }), config);
     const log = await emails.json();
     expect(log).toMatchObject({ total: 1, items: [{ notice_id: "1", delivery_source: "manual", status: "accepted", resend_id: "manual-email-id" }] });
     expect(JSON.stringify(log)).not.toContain("payload_json");
@@ -122,12 +122,12 @@ describe("manual archive email", () => {
   it("protects the manual endpoint and returns review data without sending", async () => {
     const config = await setup();
     const url = "https://monitor.example/admin/notices/1/email";
-    expect((await worker.fetch(new Request(url), config)).status).toBe(401);
-    expect((await worker.fetch(new Request(url, { method: "POST" }), config)).status).toBe(401);
+    expect((await app.fetch(new Request(url), config)).status).toBe(401);
+    expect((await app.fetch(new Request(url, { method: "POST" }), config)).status).toBe(401);
     const headers = { Authorization: `Bearer ${config.ADMIN_TOKEN}` };
-    const review = await worker.fetch(new Request(url, { headers }), config);
+    const review = await app.fetch(new Request(url, { headers }), config);
     expect(await review.json()).toMatchObject({ notice: { id: "1" }, recipients: ["reader@example.com"], enabled: true });
-    expect((await worker.fetch(new Request(url, { method: "POST", headers: { ...headers, Origin: "https://other.example" } }), config)).status).toBe(403);
+    expect((await app.fetch(new Request(url, { method: "POST", headers: { ...headers, Origin: "https://other.example" } }), config)).status).toBe(403);
     expect(await config.DB.prepare("SELECT COUNT(*) AS count FROM manual_deliveries").first()).toEqual({ count: 0 });
   });
 });

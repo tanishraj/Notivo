@@ -1,0 +1,13 @@
+.git
+node_modules
+build
+data
+portal/dist
+output
+designs
+tmp
+coverage
+test
+.dev.vars*
+.env*
+*.log

@@ -1,9 +1,9 @@
-import { env } from "cloudflare:test";
+import { env } from "./env";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { runCycle } from "../src/monitor";
 import { decideReview } from "../src/reviews";
 import { status } from "../src/store";
-import type { Fetcher } from "../src/types";
+import { RESEND_URL, type Fetcher } from "../src/types";
 import { count, listing, migrate, now, reset, settings, site } from "./helpers";
 
 beforeAll(migrate);
@@ -118,7 +118,7 @@ describe("admin alerts", () => {
   function nmc(html: string, sent: { to: string[]; subject: string; text: string }[], fail = false): Fetcher {
     const page = site(html);
     return async (input, init) => {
-      if (String(input).startsWith("https://api.resend.com")) {
+      if (String(input) === RESEND_URL) {
         sent.push(JSON.parse(String(init!.body)));
         return Response.json({ id: `email-${sent.length}` });
       }

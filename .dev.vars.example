@@ -1,7 +1,7 @@
 # Copy to .dev.vars for local development. Never commit .dev.vars.
 ADMIN_TOKEN=replace-with-a-long-random-token
 # Generated automatically by npm run dev for local development.
-# In Cloudflare, configure these independently with wrangler secret put.
+# On the server, set them as environment variables (in Coolify: Environment Variables).
 # BETTER_AUTH_SECRET: 32+ characters. SETTINGS_ENCRYPTION_KEY: 64 hex characters.
 EMAIL_TO=your-address@example.com
 EMAIL_FROM=NMC Notices <notices@your-verified-domain.com>

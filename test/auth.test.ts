@@ -1,5 +1,5 @@
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
-import worker from "../src/index";
+import app from "../src/index";
 import { migrate, reset, settings } from "./helpers";
 import type { Env } from "../src/types";
 
@@ -17,7 +17,7 @@ function authRequest(
     headers: {
       Origin: origin,
       "Content-Type": "application/json",
-      "CF-Connecting-IP": "203.0.113.21",
+      "X-Client-Ip": "203.0.113.21",
       ...extra,
     },
     ...(body === undefined ? {} : { body: JSON.stringify(body) }),
@@ -30,7 +30,7 @@ function cookies(response: Response) {
     .join("; ");
 }
 async function setup(config: Env) {
-  return worker.fetch(
+  return app.fetch(
     authRequest(
       "setup",
       { name: "Test Admin", email: "admin@example.com", password },
@@ -44,11 +44,11 @@ describe("private admin email/password login", () => {
   it("allows only one token-protected setup and stores a password hash", async () => {
     const config = settings();
     expect(
-      await (await worker.fetch(authRequest("info"), config)).json(),
+      await (await app.fetch(authRequest("info"), config)).json(),
     ).toMatchObject({ initialized: false, ready: true });
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           authRequest("setup", {
             name: "Test",
             email: "admin@example.com",
@@ -70,11 +70,11 @@ describe("private admin email/password login", () => {
     expect(stored!.password.length).toBeGreaterThan(100);
     expect((await setup(config)).status).toBe(409);
     expect(
-      await (await worker.fetch(authRequest("info"), config)).json(),
+      await (await app.fetch(authRequest("info"), config)).json(),
     ).toMatchObject({ initialized: true });
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           authRequest("sign-up/email", {
             name: "Intruder",
             email: "other@example.com",
@@ -89,7 +89,7 @@ describe("private admin email/password login", () => {
   it("authenticates by password and revokes a logged-out session on the server", async () => {
     const config = settings();
     await setup(config);
-    const bad = await worker.fetch(
+    const bad = await app.fetch(
       authRequest("sign-in/email", {
         email: "admin@example.com",
         password: "incorrect-password",
@@ -97,13 +97,13 @@ describe("private admin email/password login", () => {
       config,
     );
     expect(bad.status).toBe(401);
-    const login = await worker.fetch(
+    const login = await app.fetch(
       authRequest("sign-in/email", { email: "admin@example.com", password }),
       config,
     );
     expect(login.status).toBe(200);
     const Cookie = cookies(login);
-    const profile = await worker.fetch(
+    const profile = await app.fetch(
       new Request(`${origin}/admin/status`, { headers: { Cookie } }),
       config,
     );
@@ -116,16 +116,16 @@ describe("private admin email/password login", () => {
     });
     const request = () =>
       new Request(`${origin}/admin/settings`, { headers: { Cookie } });
-    expect((await worker.fetch(request(), config)).status).toBe(200);
+    expect((await app.fetch(request(), config)).status).toBe(200);
     expect(
-      (await worker.fetch(request(), settings({ ADMIN_TOKEN: undefined })))
+      (await app.fetch(request(), settings({ ADMIN_TOKEN: undefined })))
         .status,
     ).toBe(200);
     expect(
-      (await worker.fetch(authRequest("sign-out", {}, { Cookie }), config))
+      (await app.fetch(authRequest("sign-out", {}, { Cookie }), config))
         .status,
     ).toBe(200);
-    expect((await worker.fetch(request(), config)).status).toBe(401);
+    expect((await app.fetch(request(), config)).status).toBe(401);
   });
 
   it("rejects cross-origin writes, validates password changes, and supports explicit owner recovery", async () => {
@@ -134,7 +134,7 @@ describe("private admin email/password login", () => {
     const Cookie = cookies(session);
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           authRequest(
             "sign-in/email",
             { email: "admin@example.com", password },
@@ -146,7 +146,7 @@ describe("private admin email/password login", () => {
     ).toBe(403);
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           new Request(`${origin}/admin/settings`, {
             method: "PUT",
             headers: { Cookie, "Content-Type": "application/json" },
@@ -156,7 +156,7 @@ describe("private admin email/password login", () => {
         )
       ).status,
     ).toBe(403);
-    const changed = await worker.fetch(
+    const changed = await app.fetch(
       authRequest(
         "change-password",
         {
@@ -171,7 +171,7 @@ describe("private admin email/password login", () => {
     expect(changed.status).toBe(200);
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           authRequest("sign-in/email", {
             email: "admin@example.com",
             password,
@@ -180,7 +180,7 @@ describe("private admin email/password login", () => {
         )
       ).status,
     ).toBe(401);
-    const login = await worker.fetch(
+    const login = await app.fetch(
       authRequest("sign-in/email", {
         email: "admin@example.com",
         password: "a-new-password-used-in-tests-only",
@@ -188,7 +188,7 @@ describe("private admin email/password login", () => {
       config,
     );
     expect(login.status).toBe(200);
-    const denied = await worker.fetch(
+    const denied = await app.fetch(
       new Request(`${origin}/admin/account`, {
         method: "DELETE",
         headers: { Cookie: cookies(login), Origin: origin },
@@ -196,7 +196,7 @@ describe("private admin email/password login", () => {
       config,
     );
     expect(denied.status).toBe(403);
-    const recovery = await worker.fetch(
+    const recovery = await app.fetch(
       new Request(`${origin}/admin/account`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${config.ADMIN_TOKEN}` },
@@ -206,7 +206,7 @@ describe("private admin email/password login", () => {
     expect(recovery.status).toBe(200);
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           new Request(`${origin}/admin/settings`, {
             headers: { Cookie: cookies(login) },
           }),
@@ -215,18 +215,18 @@ describe("private admin email/password login", () => {
       ).status,
     ).toBe(401);
     expect(
-      await (await worker.fetch(authRequest("info"), config)).json(),
+      await (await app.fetch(authRequest("info"), config)).json(),
     ).toMatchObject({ initialized: false });
   });
 
-  it("rate limits repeated sign-in attempts with persistent D1 counters", async () => {
+  it("rate limits repeated sign-in attempts with counters stored in the database", async () => {
     const config = settings();
     await setup(config);
     const responses = [];
     for (let i = 0; i < 7; i++)
       responses.push(
         (
-          await worker.fetch(
+          await app.fetch(
             authRequest("sign-in/email", {
               email: "admin@example.com",
               password: "wrong-password",
@@ -246,7 +246,7 @@ describe("private admin email/password login", () => {
       new Request(`${origin}/admin/status`, { headers: { Cookie } });
     expect(
       (
-        await worker.fetch(
+        await app.fetch(
           request(),
           settings({
             BETTER_AUTH_SECRET:
@@ -258,7 +258,7 @@ describe("private admin email/password login", () => {
     await config.DB.prepare("UPDATE auth_session SET expiresAt = ?")
       .bind("2000-01-01T00:00:00.000Z")
       .run();
-    expect((await worker.fetch(request(), config)).status).toBe(401);
+    expect((await app.fetch(request(), config)).status).toBe(401);
   });
 
   it("does not create two accounts when first-time setup requests race", async () => {

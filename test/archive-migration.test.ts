@@ -1,4 +1,4 @@
-import { env } from "cloudflare:test";
+import { env } from "./env";
 import { beforeAll, beforeEach, describe, expect, it } from "vitest";
 import migration from "../migrations/0008_quiet_archive_entries.sql?raw";
 import { count, migrate, reset } from "./helpers";
