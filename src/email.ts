@@ -3,6 +3,7 @@ import {
   SOURCE_URL,
   intSetting,
   recipients,
+  sha256,
   type Env,
   type Fetcher,
   type MailPayload,
@@ -12,7 +13,7 @@ import { renderNoticeHtml } from "./email-template";
 
 export function renderEmail(
   version: Version,
-  recipient: string,
+  to: string | string[],
   sender: string,
   options: { test?: boolean; manual?: boolean } = {},
 ): MailPayload {
@@ -25,7 +26,7 @@ export function renderEmail(
     : "View NMC notice listing";
   return {
     from: sender,
-    to: [recipient],
+    to: Array.isArray(to) ? to : [to],
     subject: `${label}: ${version.title}`.slice(0, 240),
     text: [
       label,
@@ -75,14 +76,25 @@ export async function sendPending(
     );
   }
   const limit = intSetting(env.EMAILS_PER_RUN, 5, 5);
+  // One email per notice, addressed to all its recipients. Queued rows that share
+  // a stored payload (or, before the first attempt, a notice version) form one email;
+  // the limit counts emails, and a group is always fetched whole.
+  const due = `status = 'pending' AND kind = 'new' AND next_attempt_at <= ?
+      ${manualRequestId ? "AND manual_request_id = ?" : ""}`;
+  const groupKey = "COALESCE(payload_json, delivery_source || ':' || id)";
+  const params = [now.toISOString(), ...(manualRequestId ? [manualRequestId] : [])];
   const rows = await env.DB.prepare(
-    `SELECT * FROM email_deliveries
-    WHERE status = 'pending' AND kind = 'new' AND next_attempt_at <= ?
-      ${manualRequestId ? "AND manual_request_id = ?" : ""}
-    ORDER BY created_at, delivery_id LIMIT ?`,
+    `SELECT *, ${groupKey} AS group_key FROM email_deliveries
+    WHERE ${due} AND ${groupKey} IN (
+      SELECT ${groupKey} FROM email_deliveries WHERE ${due}
+      GROUP BY ${groupKey} ORDER BY MIN(created_at), MIN(delivery_id) LIMIT ?)
+    ORDER BY created_at, delivery_id`,
   )
-    .bind(now.toISOString(), ...(manualRequestId ? [manualRequestId] : []), limit)
-    .all<Delivery>();
+    .bind(...params, ...params, limit)
+    .all<Delivery & { group_key: string }>();
+  const groups = new Map<string, Delivery[]>();
+  for (const row of rows.results)
+    groups.set(row.group_key, [...(groups.get(row.group_key) ?? []), row]);
   const result = {
     enabled: true,
     accepted: 0,
@@ -91,34 +103,43 @@ export async function sendPending(
     uncertain: 0,
   };
   let attempted = false;
-  for (const row of rows.results) {
+  for (const group of groups.values()) {
+    const first = group[0]!;
+    const table = deliveryTable(first);
+    const ids = JSON.stringify(group.map((row) => row.delivery_id));
+    const update = (sql: string, ...values: unknown[]) =>
+      env.DB.prepare(`UPDATE ${table} SET ${sql} WHERE id IN (SELECT value FROM json_each(?))`)
+        .bind(...values, ids)
+        .run();
     // Resend retains idempotency keys for 24h. Stop automatic retries before expiry.
     if (
-      row.first_attempt_at &&
-      now.getTime() - Date.parse(row.first_attempt_at) >= 23 * 3_600_000
-    ) {
-      await env.DB.prepare(
-        `UPDATE ${deliveryTable(row)} SET status = 'uncertain', last_error = ? WHERE id = ?`,
+      group.some(
+        (row) => row.first_attempt_at && now.getTime() - Date.parse(row.first_attempt_at) >= 23 * 3_600_000,
       )
-        .bind(
-          "Retry window ended; reconcile with Resend before attempting another send",
-          row.delivery_id,
-        )
-        .run();
-      result.uncertain++;
+    ) {
+      await update(
+        "status = 'uncertain', last_error = ?",
+        "Retry window ended; reconcile with Resend before attempting another send",
+      );
+      result.uncertain += group.length;
       continue;
     }
-    const payload: MailPayload = row.payload_json
-      ? JSON.parse(row.payload_json)
-      : renderEmail(row, row.recipient, env.EMAIL_FROM);
+    const payload: MailPayload = first.payload_json
+      ? JSON.parse(first.payload_json)
+      : renderEmail(first, inConfiguredOrder(group.map((row) => row.recipient), env), env.EMAIL_FROM);
+    // A single-recipient email keeps the per-delivery key used before grouping, so a
+    // retry of an email queued by the previous version is still deduplicated.
+    const key =
+      payload.to.length === 1 ? first.delivery_id : await sha256(`group/${group.map((row) => row.delivery_id).sort().join(",")}`);
     if (attempted) await new Promise((resolve) => setTimeout(resolve, 550));
     attempted = true;
     // Persist the exact payload before sending so retries cannot change its content.
-    await env.DB.prepare(
-      `UPDATE ${deliveryTable(row)} SET payload_json = ?, first_attempt_at = COALESCE(first_attempt_at, ?), attempts = attempts + 1 WHERE id = ?`,
-    )
-      .bind(JSON.stringify(payload), now.toISOString(), row.delivery_id)
-      .run();
+    await update(
+      "payload_json = ?, first_attempt_at = COALESCE(first_attempt_at, ?), attempts = attempts + 1",
+      JSON.stringify(payload),
+      now.toISOString(),
+    );
+    const attempts = Math.max(...group.map((row) => row.attempts));
     let response: Response;
     let body: { id?: string; name?: string };
     try {
@@ -127,7 +148,7 @@ export async function sendPending(
         headers: {
           Authorization: `Bearer ${env.RESEND_API_KEY}`,
           "Content-Type": "application/json",
-          "Idempotency-Key": `nmc/${row.delivery_id}`,
+          "Idempotency-Key": `nmc/${key}`,
         },
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(15_000),
@@ -136,24 +157,15 @@ export async function sendPending(
       body = (await response.json()) as typeof body;
     } catch {
       // Never log API keys, payloads, or opaque provider response bodies.
-      await retry(
-        env,
-        row,
-        now,
-        "Resend response unavailable; outcome may be unknown",
-      );
-      result.retried++;
+      await retry(update, attempts, now, "Resend response unavailable; outcome may be unknown");
+      result.retried += group.length;
       continue;
     }
     if (response.ok && typeof body.id === "string" && body.id) {
       // Keep database failures outside the API catch. If this write fails, the
       // next invocation retries the same persisted payload and idempotency key.
-      await env.DB.prepare(
-        `UPDATE ${deliveryTable(row)} SET status = 'accepted', resend_id = ?, accepted_at = ?, last_error = NULL WHERE id = ?`,
-      )
-        .bind(body.id, now.toISOString(), row.delivery_id)
-        .run();
-      result.accepted++;
+      await update("status = 'accepted', resend_id = ?, accepted_at = ?, last_error = NULL", body.id, now.toISOString());
+      result.accepted += group.length;
     } else if (
       response.status === 429 ||
       response.status >= 500 ||
@@ -162,41 +174,44 @@ export async function sendPending(
         body.name === "concurrent_idempotent_requests") ||
       response.ok
     ) {
-      await retry(
-        env,
-        row,
-        now,
-        `Resend HTTP ${response.status}; retry with original idempotency key`,
-      );
-      result.retried++;
+      await retry(update, attempts, now, `Resend HTTP ${response.status}; retry with original idempotency key`);
+      result.retried += group.length;
       // Stop this cycle on rate limits rather than immediately submitting more.
       if (response.status === 429) break;
     } else {
-      await env.DB.prepare(
-        `UPDATE ${deliveryTable(row)} SET status = 'failed', last_error = ? WHERE id = ?`,
-      )
-        .bind(
-          `Resend HTTP ${response.status}; check sender, recipient, and API configuration`,
-          row.delivery_id,
-        )
-        .run();
-      result.failed++;
+      await update(
+        "status = 'failed', last_error = ?",
+        `Resend HTTP ${response.status}; check sender, recipient, and API configuration`,
+      );
+      result.failed += group.length;
     }
   }
   return result;
 }
 
-async function retry(env: Env, row: Delivery, now: Date, message: string) {
-  const delay = Math.min(3_600, 60 * 2 ** Math.min(row.attempts, 6));
-  await env.DB.prepare(
-    `UPDATE ${deliveryTable(row)} SET next_attempt_at = ?, last_error = ? WHERE id = ?`,
-  )
-    .bind(
-      new Date(now.getTime() + delay * 1_000).toISOString(),
-      message,
-      row.delivery_id,
-    )
-    .run();
+/** Recipients in the order they are saved in settings; unknown ones go last. */
+function inConfiguredOrder(list: string[], env: Env) {
+  let saved: string[] = [];
+  try {
+    saved = recipients(env);
+  } catch {
+    // No valid saved list; keep the queued order.
+  }
+  const rank = (address: string) => {
+    const index = saved.indexOf(address);
+    return index === -1 ? saved.length : index;
+  };
+  return [...list].sort((a, b) => rank(a) - rank(b));
+}
+
+async function retry(
+  update: (sql: string, ...values: unknown[]) => Promise<unknown>,
+  attempts: number,
+  now: Date,
+  message: string,
+) {
+  const delay = Math.min(3_600, 60 * 2 ** Math.min(attempts, 6));
+  await update("next_attempt_at = ?, last_error = ?", new Date(now.getTime() + delay * 1_000).toISOString(), message);
 }
 
 export async function preview(

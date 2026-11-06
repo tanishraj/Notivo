@@ -84,25 +84,26 @@ describe("manual archive email", () => {
     expect(original?.payload_json).toContain("onboarding@resend.dev");
   });
 
-  it("schedules remaining manual recipients independently and preserves exact retry payloads", async () => {
+  it("sends one manual email to every recipient and retries it with the exact payload and key", async () => {
     const config = await setup({ EMAIL_TO: "a@example.com, b@example.com", EMAILS_PER_RUN: "1" });
     const key = crypto.randomUUID();
-    const calls: string[] = [];
+    const calls: { body: string; key: string | null }[] = [];
     const fetcher: Fetcher = async (url, init) => {
       expect(String(url)).toBe("https://api.resend.com/emails");
-      calls.push(String(init?.body));
+      calls.push({ body: String(init?.body), key: new Headers(init?.headers).get("Idempotency-Key") });
       return calls.length === 1 ? Response.json({}, { status: 429 }) : Response.json({ id: `accepted-${calls.length}` });
     };
     expect(await sendNoticeManually(config, "1", key, await confirmation(config), fetcher, now))
-      .toMatchObject({ queued: 2, remaining: 2, emails: { retried: 1 } });
+      .toMatchObject({ queued: 2, remaining: 2, emails: { retried: 2 } });
+    expect(JSON.parse(calls[0]!.body).to).toEqual(["a@example.com", "b@example.com"]);
     const changed = { ...config, EMAIL_FROM: "different@example.com" };
     expect(await runScheduledCycle(changed, fetcher, new Date(now.getTime() + 61_000)))
-      .toMatchObject({ emails: { accepted: 1 } });
-    expect(calls[1]).toBe(calls[0]);
+      .toMatchObject({ emails: { accepted: 2 } });
+    expect(calls[1]).toEqual(calls[0]);
+    // Nothing is left to send, so the next tick sends nothing.
     expect(await runScheduledCycle(changed, fetcher, new Date(now.getTime() + 121_000)))
-      .toMatchObject({ emails: { accepted: 1 } });
-    expect(calls).toHaveLength(3);
-    expect(calls[2]).not.toContain("different@example.com");
+      .toMatchObject({ skipped: true });
+    expect(calls).toHaveLength(2);
   });
 
   it("rejects stale reviews, missing notices, disabled sending, malformed keys, and concurrent cycles", async () => {
