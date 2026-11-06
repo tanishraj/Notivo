@@ -15,7 +15,7 @@ The current implementation is a TypeScript Node.js server, run as one Docker con
 - Checks the newest three pages on subsequent runs.
 - A rolling scan of older pages to find backdated additions and changes.
 - Notices identified by their download ID. New IDs are emailed, recorded quietly or held for review using the NEW badge and published date (see [What counts as a new notice](#what-counts-as-a-new-notice)). Existing-entry metadata changes remain in history without notification emails.
-- A transactional outbox, separate messages per recipient, bounded retries, and Resend idempotency keys.
+- A transactional outbox, one email per notice addressed to all recipients, bounded retries, and Resend idempotency keys.
 - A database lease to prevent overlapping scans and sends.
 - Authenticated JSON status, manual run, send, and email preview endpoints.
 - A private React portal with searchable notice history, email activity, check history, previews, and scan-only manual checks.
@@ -250,7 +250,7 @@ An overlapping mutation returns 409. A scan or sender configuration failure retu
 ## Email reliability and limitations
 
 - Notice changes and outbox records are committed together in one database transaction.
-- Each recipient gets a separate message. Retries use an immutable payload and a deterministic idempotency key.
+- Each notice is one email with every configured recipient in To, so recipients can see who else received it. Email activity still records each recipient. Retries resend the same stored email with the same idempotency key, so it is never sent twice. `EMAILS_PER_RUN` counts emails. Retry on a failed attempt resends to that one recipient.
 - Temporary failures remain pending with exponential backoff, up to one hour between attempts. Each one-minute scheduler wake can attempt a due retry independently of the NMC scan interval.
 - Resend keeps idempotency keys for 24 hours. Automatic retries stop after 23 hours from the first attempt and mark the record `uncertain`. Inspect the Resend dashboard before manually resending; this prevents automatic duplicates after key expiry.
 - Permanent provider failures become `failed`. Inspect `/admin/status` and the server logs, fix configuration, and reconcile the record with Resend before manually changing its state. There is deliberately no blind “resend everything” endpoint.

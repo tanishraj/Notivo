@@ -15,11 +15,65 @@ async function queue(): Promise<Env> {
   return { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
 }
 
+describe('one email per notice', () => {
+  async function twoRecipients(): Promise<Env> {
+    const config = settings({ EMAIL_TO: 'first@example.com, second@example.com' });
+    await runCycle(config, site(listing(['1'])), now);
+    await runCycle(config, site(listing(['1', '2'])), now);
+    return { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
+  }
+  type Call = { to: string[]; body: string; key: string | null };
+  const recorder = (calls: Call[], respond: (n: number) => Response = () => Response.json({ id: `email-${calls.length}` })): Fetcher =>
+    async (_url, init) => {
+      const body = String(init?.body);
+      calls.push({ to: JSON.parse(body).to, body, key: new Headers(init?.headers).get('Idempotency-Key') });
+      return respond(calls.length);
+    };
+
+  it('addresses one email to every recipient, in the configured order, and never sends it twice', async () => {
+    const config = await twoRecipients();
+    const calls: Call[] = [];
+    expect(await sendPending(config, recorder(calls), now)).toMatchObject({ accepted: 2 });
+    expect(calls.map((c) => c.to)).toEqual([['first@example.com', 'second@example.com']]);
+    const rows = (await env.DB.prepare('SELECT status, resend_id FROM outbox').all()).results;
+    expect(rows).toEqual([{ status: 'accepted', resend_id: 'email-1' }, { status: 'accepted', resend_id: 'email-1' }]);
+    // Later cycles and scans find nothing left to send for this notice.
+    await sendPending(config, recorder(calls), new Date(now.getTime() + 60_000));
+    await runScheduledCycle(config, recorder(calls), new Date(now.getTime() + 3_600_000));
+    expect(calls).toHaveLength(1);
+  });
+
+  it('retries the same email with the identical payload and idempotency key', async () => {
+    const config = await twoRecipients();
+    const calls: Call[] = [];
+    const fetcher = recorder(calls, (n) => (n === 1 ? Response.json({}, { status: 500 }) : Response.json({ id: 'accepted' })));
+    expect(await sendPending(config, fetcher, now)).toMatchObject({ retried: 2 });
+    expect(await sendPending(config, fetcher, new Date(now.getTime() + 61_000))).toMatchObject({ accepted: 2 });
+    expect(calls).toHaveLength(2);
+    expect(calls[1]).toEqual(calls[0]);
+    expect(calls[0]!.key).toMatch(/^nmc\/[a-f0-9]{64}$/);
+  });
+
+  it('finishes an email queued before this change exactly as it was queued', async () => {
+    const config = await twoRecipients();
+    // A per-recipient payload already attempted once by the previous version.
+    const rows = (await env.DB.prepare('SELECT o.id, o.recipient FROM outbox o').all<{ id: string; recipient: string }>()).results;
+    for (const row of rows)
+      await env.DB.prepare("UPDATE outbox SET payload_json = ?, attempts = 1, first_attempt_at = ? WHERE id = ?")
+        .bind(JSON.stringify({ from: 'old@example.com', to: [row.recipient], subject: 's', text: 't', html: 'h' }), now.toISOString(), row.id).run();
+    const calls: Call[] = [];
+    await sendPending(config, recorder(calls), new Date(now.getTime() + 1_000));
+    await sendPending(config, recorder(calls), new Date(now.getTime() + 2_000));
+    expect(calls.map((c) => c.to).sort()).toEqual([['first@example.com'], ['second@example.com']]);
+    expect(calls.map((c) => c.key).sort()).toEqual(rows.map((r) => `nmc/${r.id}`).sort());
+  });
+});
+
 describe('Resend delivery', () => {
-  it('drains pending recipients on successive scheduler ticks without waiting for another scan', async () => {
+  it('drains queued notices on successive scheduler ticks without waiting for another scan', async () => {
     const config = settings({ EMAIL_TO: 'admin@example.com, reader@example.com', EMAILS_PER_RUN: '1' });
     await runCycle(config, site(listing(['1'])), now, false, true);
-    await runCycle(config, site(listing(['1', '2'])), now, false, true);
+    await runCycle(config, site(listing(['1', '2', '3'])), now, false, true);
     const enabled = { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
     let calls = 0;
     const fetcher: Fetcher = async (url) => {
@@ -27,15 +81,16 @@ describe('Resend delivery', () => {
       calls++;
       return calls === 1
         ? Response.json({ name: 'validation_error' }, { status: 403 })
-        : Response.json({ id: 'accepted-second-recipient' });
+        : Response.json({ id: 'accepted-second-notice' });
     };
+    // One email per notice, to both recipients: the first fails for both, the second is accepted for both.
     expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 60_000)))
-      .toMatchObject({ skipped: false, emails: { failed: 1, accepted: 0 } });
+      .toMatchObject({ skipped: false, emails: { failed: 2, accepted: 0 } });
     expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 120_000)))
-      .toMatchObject({ skipped: false, emails: { accepted: 1 } });
+      .toMatchObject({ skipped: false, emails: { accepted: 2 } });
     expect(calls).toBe(2);
     expect((await env.DB.prepare('SELECT status FROM outbox ORDER BY status').all()).results)
-      .toEqual([{ status: 'accepted' }, { status: 'failed' }]);
+      .toEqual([{ status: 'accepted' }, { status: 'accepted' }, { status: 'failed' }, { status: 'failed' }]);
     expect((await env.DB.prepare('SELECT last_success_at FROM monitor_state').first())?.last_success_at)
       .toBe(now.toISOString());
     expect(await runScheduledCycle(enabled, fetcher, new Date(now.getTime() + 180_000)))

@@ -73,10 +73,12 @@ export async function sendNoticeManually(
       const version: Version = {
         ...review.notice, notice_id: noticeId, kind: "new", detected_at: stamp,
       };
+      // One email to every target; each row stores the same payload, so it sends once.
+      const payload = JSON.stringify(renderEmail(version, targets, review.sender, { manual: true }));
       const deliveries = await Promise.all(targets.map(async (recipient) => ({
         id: await sha256(`manual/${requestId}/${recipient}`),
         recipient,
-        payload: JSON.stringify(renderEmail(version, recipient, review.sender, { manual: true })),
+        payload,
       })));
       await env.DB.batch([
         env.DB.prepare("INSERT INTO manual_email_requests (id, notice_id, settings_revision, fingerprint, created_at) VALUES (?, ?, ?, ?, ?)")

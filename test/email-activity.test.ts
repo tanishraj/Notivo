@@ -129,7 +129,9 @@ describe("explicit failed-email retries", () => {
     expect(network).toHaveBeenCalledTimes(1);
     const before = await config.DB.prepare("SELECT status, payload_json, attempts FROM outbox WHERE id = ?").bind(original.delivery_id).first();
     expect(before).toMatchObject({ status: "failed", payload_json: original.payload_json, attempts: 1 });
-    expect((await list(config, "view=attention")).total).toBe(0);
+    // The email failed for both recipients; a retry resends to the one chosen, so the other still needs attention.
+    const attention = await list(config, "view=attention");
+    expect(attention.items.map((item) => item.recipient)).toEqual(["b@example.com", "a@example.com"].filter((r) => r !== original.recipient));
     const accepted = await list(config, "view=history&status=accepted");
     expect(accepted.items[0]).toMatchObject({ recipient: original.recipient, delivery_source: "manual" });
     await expect(retryFailedEmail(config, "automatic", original.delivery_id, crypto.randomUUID(), network, now)).rejects.toThrow("already accepted");
@@ -141,8 +143,8 @@ describe("explicit failed-email retries", () => {
     const network = vi.fn(async () => Response.json({}, { status: 429 }));
     expect(await retryFailedEmail(config, "automatic", original.delivery_id, crypto.randomUUID(), network, now))
       .toMatchObject({ deliveryStatus: "pending", emails: { retried: 1 } });
-    expect((await list(config, "view=queue")).total).toBe(4);
-    expect((await list(config, "view=attention")).total).toBe(0);
+    expect((await list(config, "view=queue")).total).toBe(3);
+    expect((await list(config, "view=attention")).items.map((item) => item.recipient)).not.toContain(original.recipient);
     await expect(retryFailedEmail(config, "automatic", original.delivery_id, crypto.randomUUID(), network, now)).rejects.toThrow("already has a retry");
     expect(network).toHaveBeenCalledTimes(1);
   });
@@ -150,12 +152,12 @@ describe("explicit failed-email retries", () => {
   it("can retry the latest failed manual attempt while retaining the complete chain", async () => {
     const { config, original } = await failedAttempt();
     await retryFailedEmail(config, "automatic", original.delivery_id, crypto.randomUUID(), async () => Response.json({}, { status: 403 }), now);
-    const latest = (await list(config, "view=attention")).items[0]!;
+    const latest = (await list(config, "view=attention")).items.find((item) => item.recipient === original.recipient)!;
     expect(latest.delivery_source).toBe("manual");
     expect(await retryFailedEmail(config, "manual", latest.id, crypto.randomUUID(), async () => Response.json({ id: "accepted-second-retry" }), new Date(now.getTime() + 1000)))
       .toMatchObject({ deliveryStatus: "accepted" });
-    expect((await list(config, "view=attention")).total).toBe(0);
-    expect((await list(config, "view=history")).total).toBe(3);
+    expect((await list(config, "view=attention")).items.map((item) => item.recipient)).not.toContain(original.recipient);
+    expect((await list(config, "view=history")).total).toBe(4);
   });
 
   it("protects retry actions and blocks unsafe or disabled attempts before sending", async () => {

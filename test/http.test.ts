@@ -53,7 +53,7 @@ describe('administration endpoints', () => {
   it('manually sends a bounded pending cycle without scanning, bypassing the scan interval but preserving origin protection', async () => {
     const config = settings({ EMAIL_TO: 'first@example.com, second@example.com', EMAILS_PER_RUN: '1' });
     await runCycle(config, site(listing(['1'])), now, false, true);
-    await runCycle(config, site(listing(['1', '2'])), now, false, true);
+    await runCycle(config, site(listing(['1', '2', '3'])), now, false, true);
     const enabled = { ...config, EMAIL_ENABLED: 'true', RESEND_API_KEY: 'test-key-not-a-real-key' };
     const fetcher = vi.fn(async (url: Parameters<typeof fetch>[0]) => {
       expect(String(url)).toBe('https://api.resend.com/emails');
@@ -71,9 +71,10 @@ describe('administration endpoints', () => {
         method: 'POST', headers,
       }), enabled);
       expect(response.status).toBe(200);
-      expect(await response.json()).toMatchObject({ emails: { accepted: 1 } });
+      // The limit counts emails: one notice, sent once to both recipients.
+      expect(await response.json()).toMatchObject({ emails: { accepted: 2 } });
       expect(fetcher).toHaveBeenCalledTimes(1);
-      expect((await config.DB.prepare("SELECT COUNT(*) AS count FROM outbox WHERE status = 'pending'").first())?.count).toBe(1);
+      expect((await config.DB.prepare("SELECT COUNT(*) AS count FROM outbox WHERE status = 'pending'").first())?.count).toBe(2);
     } finally {
       vi.unstubAllGlobals();
     }
